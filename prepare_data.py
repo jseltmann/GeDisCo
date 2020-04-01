@@ -138,6 +138,8 @@ def append_files(txt_dir, combined_path):
 
     with open(combined_path, "w") as comb_file:
         for fn in os.listdir(txt_dir):
+            if fn[-4:] == "inds":
+                continue
             file_path = os.path.join(txt_dir, fn)
             comb_file.write("##############################" + fn + "\n")
             with open(file_path) as txt_file:
@@ -145,7 +147,8 @@ def append_files(txt_dir, combined_path):
                     comb_file.write(line)
 
 
-#append_files("/home/users/jseltmann/data/europarl/common/txt/fr", "/home/users/jseltmann/data/europarl/common/comb/fr.txt")
+append_files("/home/users/jseltmann/data/europarl/common/txt/fr", "/home/users/jseltmann/data/europarl/common/comb/fr.txt")
+append_files("/home/users/jseltmann/data/europarl/common/txt/cs", "/home/users/jseltmann/data/europarl/common/comb/cs.txt")
 
 
 def remove_long(txt_dir, long_dir=None):
@@ -183,5 +186,5 @@ def remove_long(txt_dir, long_dir=None):
                 break
 
 
-remove_long("/home/users/jseltmann/data/europarl/common/txt/en", 
-            "/home/users/jseltmann/data/europarl/common/too_long/en")
+#remove_long("/home/users/jseltmann/data/europarl/common/txt/en", 
+#            "/home/users/jseltmann/data/europarl/common/too_long/en")
