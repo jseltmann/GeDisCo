@@ -67,6 +67,12 @@ def copy_common(filenames, common_save_path, langs, xml_path):
 def xml_to_txt(xml_path, txt_path):
     """
     Turn xml europarl files into plain text files to use for discourse parsing.
+    Create an own file for each speaker in the xml file, 
+    but not for the president.
+    Additionally, for each txt file, create a file which contains the indices,
+    that the sentences in the txt file had in the xml file.
+    This is important in order to not lose the information about sentence
+    alignment between the various languages.
 
     Parameters
     ----------
@@ -111,9 +117,9 @@ def xml_to_txt(xml_path, txt_path):
                     inds_file.write(ind + "\n")
 
 
-for lang in ["en", "de", "fr", "cs"]:
-    xml_to_txt("/home/users/jseltmann/data/europarl/common/xml/" + lang, 
-               "/home/users/jseltmann/data/europarl/common/txt/" + lang)
+#for lang in ["en", "de", "fr", "cs"]:
+#    xml_to_txt("/home/users/jseltmann/data/europarl/common/xml/" + lang, 
+#               "/home/users/jseltmann/data/europarl/common/txt/" + lang)
 
 
 def append_files(txt_dir, combined_path):
@@ -140,3 +146,42 @@ def append_files(txt_dir, combined_path):
 
 
 #append_files("/home/users/jseltmann/data/europarl/common/txt/fr", "/home/users/jseltmann/data/europarl/common/comb/fr.txt")
+
+
+def remove_long(txt_dir, long_dir=None):
+    """
+    Remove files that contain sentences with more than 200 words,
+    since these can't be parsed by the stanford parser.
+    Also remove the corresponding .inds files.
+
+    Parameters
+    ----------
+    txt_dir : str
+        Directory containing the text files.
+    long_dir : str or None
+        Directory to copy the files to, which contain a line that is too long.
+        If None, the files are deleted.
+    """
+
+    for fn in os.listdir(txt_dir):
+        if fn[-4:] == "inds":
+            continue
+        old_path = os.path.join(txt_dir, fn)
+        with open(old_path) as f:
+            lines = f.readlines()
+        for line in lines:
+            if len(line.split()) > 200:
+                old_path_inds = os.path.join(txt_dir, fn[:-3]+"inds")
+                if long_dir is not None:
+                    new_path = os.path.join(long_dir, fn)
+                    os.rename(old_path, new_path)
+                    new_path_inds = os.path.join(long_dir, fn[:-3]+"inds")
+                    os.rename(old_path_inds, new_path_inds)
+                else:
+                    os.remove(old_path)
+                    os.remove(old_path_inds)
+                break
+
+
+remove_long("/home/users/jseltmann/data/europarl/common/txt/en", 
+            "/home/users/jseltmann/data/europarl/common/too_long/en")
