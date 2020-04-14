@@ -101,7 +101,7 @@ def xml_to_txt(xml_path, txt_path):
             sents = list(speaker.iter(tag='s'))
             sent_inds = [s.attrib['id'] for s in sents]
             sents = [s.iter(tag='w') for s in sents]
-            sents = [[word.text for word in s] for s in sents]
+            sents = [[word.text.lower() for word in s] for s in sents]
             sents = [" ".join(s) for s in sents]
 
             text_fn = fn[:-4] + "_" + str(i) + ".txt"
@@ -120,6 +120,46 @@ def xml_to_txt(xml_path, txt_path):
 #for lang in ["en", "de", "fr", "cs"]:
 #    xml_to_txt("/home/users/jseltmann/data/europarl/common/xml/" + lang, 
 #               "/home/users/jseltmann/data/europarl/common/txt/" + lang)
+
+
+def clean_txt(txt_dir):
+    """
+    Clean up small problems in the txt files.
+
+    Parameters
+    ----------
+    txt_dir : str
+        Directory containing the txt files.
+    """
+    for fn in os.listdir(txt_dir):
+        if fn[-4:] == "inds":
+            continue
+        path = os.path.join(txt_dir, fn)
+        with open(path) as txt_file:
+            lines = txt_file.readlines()
+        with open(path, "w") as txt_file:
+            for line in lines:
+                # remove whitespaces in numbers, e.g. 12 000 -> 12000
+                num_reg = r"([0-9]+[\s|\n|\.])+"
+                def num_repl(match):
+                    ret_str = match[0]
+                    if ret_str[-1] == "\n":
+                        ret_str = ret_str[:-1]
+                        line_break = True
+                    else:
+                        line_break = False
+                    ret_str = "".join(ret_str.split())
+                    if line_break:
+                        ret_str += "\n"
+                    else:
+                        ret_str += " "
+                    return ret_str
+                
+                new_line = re.sub(num_reg, num_repl, line)
+                txt_file.write(new_line)
+
+
+#clean_txt("/home/users/jseltmann/data/europarl/common/txt/en")
 
 
 def append_files(txt_dir, combined_path):
@@ -144,11 +184,11 @@ def append_files(txt_dir, combined_path):
             comb_file.write("##############################" + fn + "\n")
             with open(file_path) as txt_file:
                 for line in txt_file:
-                    comb_file.write(line)
+                    comb_file.write(line.lower())
 
 
-append_files("/home/users/jseltmann/data/europarl/common/txt/fr", "/home/users/jseltmann/data/europarl/common/comb/fr.txt")
-append_files("/home/users/jseltmann/data/europarl/common/txt/cs", "/home/users/jseltmann/data/europarl/common/comb/cs.txt")
+#append_files("/home/users/jseltmann/data/europarl/common/txt/fr", "/home/users/jseltmann/data/europarl/common/comb/fr.txt")
+#append_files("/home/users/jseltmann/data/europarl/common/txt/cs", "/home/users/jseltmann/data/europarl/common/comb/cs.txt")
 
 
 def remove_long(txt_dir, long_dir=None):
