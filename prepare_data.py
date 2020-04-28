@@ -156,10 +156,16 @@ def clean_txt(txt_dir):
                     return ret_str
                 
                 new_line = re.sub(num_reg, num_repl, line)
+                regs = [r"&#93;", r"&#91;", r"&quot;", r"&apos;", r"&amp;", r"@-@"]
+                repls = ["]", "[", "„", "\'", "&", "-"]
+                for reg, repl in zip(regs, repls):
+                    #print(reg, repl)
+                    new_line = re.sub(reg, lambda m: repl, new_line)
                 txt_file.write(new_line)
 
 
-#clean_txt("/home/users/jseltmann/data/europarl/common/txt/en")
+clean_txt("/home/users/jseltmann/data/europarl/common/txt/cs_trans")
+#clean_txt("/home/users/jseltmann/data/europarl/common/test")
 
 
 def append_files(txt_dir, combined_path):
@@ -184,10 +190,11 @@ def append_files(txt_dir, combined_path):
             comb_file.write("##############################" + fn + "\n")
             with open(file_path) as txt_file:
                 for line in txt_file:
-                    comb_file.write(line.lower())
+                    #comb_file.write(line.lower())
+                    comb_file.write(line)
 
 
-#append_files("/home/users/jseltmann/data/europarl/common/txt/fr", "/home/users/jseltmann/data/europarl/common/comb/fr.txt")
+#append_files("/home/users/jseltmann/data/europarl/common/txt/fr", "/home/users/jseltmann/data/europarl/common/comb/fr_test.txt")
 #append_files("/home/users/jseltmann/data/europarl/common/txt/cs", "/home/users/jseltmann/data/europarl/common/comb/cs.txt")
 
 
@@ -228,3 +235,33 @@ def remove_long(txt_dir, long_dir=None):
 
 #remove_long("/home/users/jseltmann/data/europarl/common/txt/en", 
 #            "/home/users/jseltmann/data/europarl/common/too_long/en")
+
+def split_translated(trans_file_path, trans_dir):
+    """
+    Split the file produced by the moses translation
+    into the individual files for the speeches.
+
+    Parameters
+    ----------
+    trans_file_path : str
+        Path to file containing translations.
+    trans_dir : str
+        Directory to save the files to.
+    """
+
+    hashtag_re = r"########################"
+    i = 0
+    with open(trans_file_path) as trans_file:
+        for line in trans_file:
+            if re.match(hashtag_re, line):
+                fn = line.split("#")[-1][:-2]
+                split_path = os.path.join(trans_dir, fn)
+                i += 1
+                #if i == 3:
+                #    break
+            else:
+                with open(split_path, "a") as split_file:
+                    split_file.write(line)
+
+#split_translated("/home/users/jseltmann/data/europarl/common/comb/cs2_trans.txt",
+#                 "/home/users/jseltmann/data/europarl/common/txt/cs_trans/")
