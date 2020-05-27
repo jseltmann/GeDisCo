@@ -77,49 +77,49 @@ def intersection_alignment(src2tgt_path, tgt2src_path, intersection_path):
 #        "/home/johann/Studium/IM/data/Europarl/smt/de-en/model/aligned.intersection")
 
 
-def giza_prepare(lang1_dir, lang2_dir, comb1_path, comb2_path):
-    """
-    Write the texts for two languages in one file each,
-    such that the documents line up.
-    Also saves the filenames and the number of lines per document
-    to an extra file, so that the documents can be recovered later.
-
-    Parameters
-    ----------
-    lang1_dir : str
-        Path to directory containing txt files for first lanugage.
-    lang2_dir : str
-        Path to directory containing txt files for second language.
-    comb1_path : str
-        Path to save output for first language.
-    comb2_path : str
-        You get the idea.
-    """
-
-    fns1 = os.listdir(lang1_dir)
-    fns2 = os.listdir(lang2_dir)
-    common_fns = [fn for fn in fns1 if fn in fns2]
-    comb1_inds_path = comb1_path + "inds"
-    comb2_inds_path = comb2_path + "inds"
-
-    with open(comb1_path, "w") as comb1, open(comb2_path, "w") as comb2,\
-            open(comb1_inds_path, "w") as inds1, open(comb2_inds_path, "w") as inds2:
-        for fn in common_fns:
-            path1 = os.path.join(lang1_dir, fn)
-            comb1.write("##############################" + fn + "\n")
-            with open(path1) as f1:
-                lines = f1.readlines()
-                for line in lines:
-                    comb1.write(line)
-            inds1.write(fn + " " + str(len(lines)) + "\n")
-            
-            path2 = os.path.join(lang2_dir, fn)
-            comb2.write("##############################" + fn + "\n")
-            with open(path2) as f2:
-                lines = f2.readlines()
-                for line in lines:
-                    comb2.write(line)
-            inds2.write(fn + " " + str(len(lines)) + "\n")
+#def giza_prepare(lang1_dir, lang2_dir, comb1_path, comb2_path):
+#    """
+#    Write the texts for two languages in one file each,
+#    such that the documents line up.
+#    Also saves the filenames and the number of lines per document
+#    to an extra file, so that the documents can be recovered later.
+#
+#    Parameters
+#    ----------
+#    lang1_dir : str
+#        Path to directory containing txt files for first lanugage.
+#    lang2_dir : str
+#        Path to directory containing txt files for second language.
+#    comb1_path : str
+#        Path to save output for first language.
+#    comb2_path : str
+#        You get the idea.
+#    """
+#
+#    fns1 = os.listdir(lang1_dir)
+#    fns2 = os.listdir(lang2_dir)
+#    common_fns = [fn for fn in fns1 if fn in fns2]
+#    comb1_inds_path = comb1_path + "inds"
+#    comb2_inds_path = comb2_path + "inds"
+#
+#    with open(comb1_path, "w") as comb1, open(comb2_path, "w") as comb2,\
+#            open(comb1_inds_path, "w") as inds1, open(comb2_inds_path, "w") as inds2:
+#        for fn in common_fns:
+#            path1 = os.path.join(lang1_dir, fn)
+#            comb1.write("##############################" + fn + "\n")
+#            with open(path1) as f1:
+#                lines = f1.readlines()
+#                for line in lines:
+#                    comb1.write(line)
+#            inds1.write(fn + " " + str(len(lines)) + "\n")
+#            
+#            path2 = os.path.join(lang2_dir, fn)
+#            comb2.write("##############################" + fn + "\n")
+#            with open(path2) as f2:
+#                lines = f2.readlines()
+#                for line in lines:
+#                    comb2.write(line)
+#            inds2.write(fn + " " + str(len(lines)) + "\n")
 
 #giza_prepare("/home/johann/Studium/IM/data/txt/cs_trans",
 #             "/home/johann/Studium/IM/data/txt/de",
@@ -144,10 +144,14 @@ def split_aligned(aligned_path, comb1_path, comb2_path):
     fn_line = "tmp"
     
     with open(comb1_path, "w") as comb1, open(comb2_path, "w") as comb2:
+        prev_line_hash = False
         for line in open(aligned_path):
-            if line[0] == "#":
+            if line[0] == "#" and not prev_line_hash:
                 comb1.write(line)
                 comb2.write(line)
+                prev_line_hash = True
+            elif line[0] == "#" and prev_line_hash:
+                continue
             else:
                 line = line[:-1]
                 l1, l2 = line.split("\t")
@@ -155,6 +159,51 @@ def split_aligned(aligned_path, comb1_path, comb2_path):
                 comb1.write("\n")
                 comb2.write(l2)
                 comb2.write("\n")
-split_aligned("/home/johann/Studium/IM/data/txt/comb2/de_cs.aligned",
-              "/home/johann/Studium/IM/data/txt/comb2/de_comb.txt",
-              "/home/johann/Studium/IM/data/txt/comb2/cs_comb.txt")
+                prev_line_hash = False
+#split_aligned("/data/europarl/common/sent_aligned/de_en.txt",
+#              "/data/europarl/common/sent_aligned/de_en4/de_comb.txt",
+#              "/data/europarl/common/sent_aligned/de_en4/en_comb.txt")
+
+def rm_dok_names(comb_path, inds_path, out_path):
+    """
+    Take a combined file containing many europarl speeches.
+    Remove the lines indicating a new speech,
+    i.e. the ones beginning with "##############################".
+    Also remove blank lines.
+    For each speech, write the filename and the number
+    of lines into a new file.
+
+    Parameters
+    ----------
+    comb_path : str
+        Original file containing speeches.
+    inds_path : str
+        File to save filenames and numbers of lines to.
+    out_path : str
+        File to save the speeches to.
+    """
+
+    with open(comb_path) as orig_file:
+        with open(inds_path, "w") as inds_file, \
+                open(out_path, "w") as out_file:
+            curr_fn = None
+            curr_num = 0
+            for line in orig_file:
+                #if line.strip() == "":
+                #    continue
+                if line[0] == "#":
+                    if curr_fn is not None and curr_num != 0:
+                        inds_file.write(curr_fn + " " + str(curr_num) + "\n")
+                    curr_fn = line.split("#")[-1][:-1]
+                    curr_num = 0
+                else:
+                    curr_num += 1
+                    out_file.write(line)
+
+
+rm_dok_names("/data/europarl/common/sent_aligned/de_en4/en_comb.txt", 
+             "/data/europarl/common/sent_aligned/de_en4/en_sent_inds.txt",
+             "/data/europarl/common/sent_aligned/de_en4/en_no_fn.txt")
+rm_dok_names("/data/europarl/common/sent_aligned/de_en4/de_comb.txt", 
+             "/data/europarl/common/sent_aligned/de_en4/de_sent_inds.txt",
+             "/data/europarl/common/sent_aligned/de_en4/de_no_fn.txt")
