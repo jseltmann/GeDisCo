@@ -176,34 +176,69 @@ def split_giza_results(giza_dir, sent_inds_path, out_dir):
     fns = os.listdir(giza_dir)
     fns = [fn for fn in fns if fn[:15]=="src_trg.dict.A3"]
 
-    sent_pairs = dict(int)
+    #sent_pairs = dict()
+    alg_lines = dict()
 
     num_reg = r"\(([0-9]+)\)"
     for fn in fns:
-        with open(fn) as f:
-            #for line in f:
-            #    if line[0] = "#":
-            lines = f.readlines()
-            while lines != []:
-                curr_lines = lines[:3]
-                lines = lines[3:]
-                match = re.search(reg, curr_lines[0])
-                num = int(match.group(1))
-                line_pair = (curr_lines[1], curr_lines[2])
-                sent_pairs[num] = line_pair
+        giza_path = os.path.join(giza_dir, fn)
+        line_ind = 0
+        with open(giza_path) as f:
+            #lines = f.readlines()
+            #while lines != []:
+            for line in f:
+                #curr_lines = lines[:3]
+                #lines = lines[3:]
+                if line_ind == 0:
+                    # line containing information about sentence pair
+                    #match = re.search(num_reg, curr_lines[0])
+                    match = re.search(num_reg, line)
+                    num = int(match.group(1))
+                    line_ind = 1
+                elif line_ind == 1:
+                    # line containing target language text
+                    alg_lines[num] = line[:-1]
+                    line_ind = 2
+                else:
+                    alg_lines[num] = (alg_lines[num], line[:-1])
+                    line_ind = 0
+                
+                #line_pair = (curr_lines[1], curr_lines[2])
+                #alg_lines[num] = curr_lines[2]
+                #sent_pairs[num] = line_pair
 
-    print(min(sent_pairs.keys()))
-    #sent_count = 1
-    #with open(sent_inds_path) as sent_inds:
-    #    for line in sent_inds_path:
-    #        fn, num = line.split()
-    #        num = str(num)
-    #        out_path = os.path.join(out_dir, fn)
-    #        with open(out_path, "w") as out_file:
-    #            for i in range(num):
-    #                pair = sent_pairs[sent_count + i]
-    #                out_file.write(pair[0])
-    #                out_file.write(pair[1])
-    split_giza_results("/data/europarl/common/sent_aligned/de_en4/results/",
-                       "/data/europarl/common/sent_aligned/de_en4/de_sent_inds.txt",
-                       "/data/europarl/common/sent_aligned/de_en/")
+    sent_count = 1
+    with open(sent_inds_path) as sent_inds:
+        for line in sent_inds:
+            fn, num = line.split()
+            num = int(num)
+
+            wc_src = 0
+            wc_trg = 0
+
+            out_path = os.path.join(out_dir, fn)
+            with open(out_path, "w") as out_file:
+                for i in range(num):
+                    line_trg, line_src = alg_lines[sent_count + i]
+                    word_alg = line_src.split(" })")
+                    if word_alg[-1].strip() == "":
+                        word_alg = word_alg[:-1]
+                    word_alg = [s.split(" ({") for s in word_alg]
+                    alg_line = ""
+                    for i, (word, inds) in enumerate(word_alg):
+                        if i == 0:
+                            continue
+                        inds = inds.split()
+                        for ind in inds:
+                            ind_trg = str(wc_trg + int(ind))
+                            ind_src = str(wc_src + i)
+                            alg_line += ind_src + "-" + ind_trg + " "
+                    alg_line += "\n"
+                    out_file.write(alg_line)
+
+                    wc_src += len(word_alg)
+                    wc_trg += len(line_trg.strip().split())
+
+split_giza_results("/data/europarl/common/sent_aligned/en_de_def_dist/results/",
+                   "/data/europarl/common/sent_aligned/de_en_defdist/de_sent_inds.txt",
+                   "/data/europarl/common/word_aligned/en_de/")
