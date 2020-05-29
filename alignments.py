@@ -209,7 +209,7 @@ def split_giza_results(giza_dir, sent_inds_path, out_dir):
 
     sent_count = 1
     with open(sent_inds_path) as sent_inds:
-        for line in sent_inds:
+        for j, line in enumerate(sent_inds):
             fn, num = line.split()
             num = int(num)
 
@@ -227,6 +227,7 @@ def split_giza_results(giza_dir, sent_inds_path, out_dir):
                     alg_line = ""
                     for i, (word, inds) in enumerate(word_alg):
                         if i == 0:
+                            #ignore NULL word
                             continue
                         inds = inds.split()
                         for ind in inds:
@@ -236,9 +237,15 @@ def split_giza_results(giza_dir, sent_inds_path, out_dir):
                     alg_line += "\n"
                     out_file.write(alg_line)
 
-                    wc_src += len(word_alg)
+                    wc_src += len(word_alg) - 1
                     wc_trg += len(line_trg.strip().split())
+
+            sent_count += num
 
 split_giza_results("/data/europarl/common/sent_aligned/en_de_def_dist/results/",
                    "/data/europarl/common/sent_aligned/de_en_defdist/de_sent_inds.txt",
-                   "/data/europarl/common/word_aligned/en_de/")
+                   "/data/europarl/common/word_aligned/en_de2/")
+split_giza_results("/data/europarl/common/sent_aligned/de_en_defdist/results/",
+                   "/data/europarl/common/sent_aligned/de_en_defdist/de_sent_inds.txt",
+                   "/data/europarl/common/word_aligned/de_en2/")
+                   #"/data/europarl/common/test2/")
