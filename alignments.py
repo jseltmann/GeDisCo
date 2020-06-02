@@ -39,42 +39,49 @@ def split_align_file_docs(sent_align_path, word_align_path, split_dir):
 #                      "/home/johann/Studium/IM/data/Europarl/smt/de-en/model/aligned.intersection",
 #                      "/home/johann/Studium/IM/data/europarl/alignments/en_full_intersection")
 
-def intersection_alignment(src2tgt_path, tgt2src_path, intersection_path):
+def intersection_alignment(src2tgt_dir, tgt2src_dir, intersection_dir):
     """
     Get intersection of word alignments for two directions.
 
     Parameters
     ----------
-    src2tgt_path : str
-        Alignment file in one direction.
-    tgt2src_path : str
-        Alignment file in other direction.
-    intersection_path : str
-        File to save intersection to.
+    src2tgt_dir : str
+        Directory containing alignments in one direction.
+    tgt2src_dir : str
+        Directory containing alignments in other direction.
+    intersection_dir : str
+        Directory to save intersection to.
     """
 
-    with open(src2tgt_path) as s2t_file, \
-            open(tgt2src_path) as t2s_file, \
-            open(intersection_path, "w") as int_file:
-        for s2t_line, t2s_line in zip(s2t_file, t2s_file):
-            s2t = s2t_line.split()
-            s2t = [a.split("-") for a in s2t]
-            s2t = [(int(i),int(j)) for (i,j) in s2t]
+    fns = os.listdir(src2tgt_dir)
+    fns_rev = os.listdir(tgt2src_dir)
+    fns = [fn for fn in fns if fn in fns_rev]
 
-            t2s = t2s_line.split()
-            t2s = [a.split("-") for a in t2s]
-            t2s = [(int(i),int(j)) for (i,j) in t2s]
+    for fn in fns:
+        src2tgt_path = os.path.join(src2tgt_dir, fn)
+        tgt2src_path = os.path.join(tgt2src_dir, fn)
+        intersection_path = os.path.join(intersection_dir, fn)
+        with open(src2tgt_path) as s2t_file, \
+                open(tgt2src_path) as t2s_file, \
+                open(intersection_path, "w") as int_file:
+            for s2t_line, t2s_line in zip(s2t_file, t2s_file):
+                s2t = s2t_line.split()
+                s2t = [a.split("-") for a in s2t]
+                s2t = [(int(i),int(j)) for (i,j) in s2t]
 
-            inter = [tup for tup in s2t if tup in t2s]
-            inter = [str(i) + "-" + str(j) for (i,j) in inter]
-            inter = " ".join(inter)
-            int_file.write(inter)
-            int_file.write("\n")
+                t2s = t2s_line.split()
+                t2s = [a.split("-") for a in t2s]
+                t2s = [(int(i),int(j)) for (i,j) in t2s]
 
+                inter = [tup for tup in s2t if tup in t2s]
+                inter = [str(i) + "-" + str(j) for (i,j) in inter]
+                inter = " ".join(inter)
+                int_file.write(inter)
+                int_file.write("\n")
 
-#intersection_alignment("/home/johann/Studium/IM/data/Europarl/smt/de-en/model/aligned.srctotgt", 
-#        "/home/johann/Studium/IM/data/Europarl/smt/de-en/model/aligned.tgttosrc", 
-#        "/home/johann/Studium/IM/data/Europarl/smt/de-en/model/aligned.intersection")
+intersection_alignment("/data/europarl/common/word_aligned/de_en3",
+                       "/data/europarl/common/word_aligned/en_de3",
+                       "/data/europarl/common/word_aligned/de_en_intersection")
 
 
 def split_aligned(aligned_path, comb1_path, comb2_path):
@@ -104,16 +111,16 @@ def split_aligned(aligned_path, comb1_path, comb2_path):
             elif line[0] == "#" and prev_line_hash:
                 continue
             else:
-                line = line[:-1]
+                line = line[:-1].lower()
                 l1, l2 = line.split("\t")
                 comb1.write(l1)
                 comb1.write("\n")
                 comb2.write(l2)
                 comb2.write("\n")
                 prev_line_hash = False
-#split_aligned("/data/europarl/common/sent_aligned/de_en.txt",
-#              "/data/europarl/common/sent_aligned/de_en4/de_comb.txt",
-#              "/data/europarl/common/sent_aligned/de_en4/en_comb.txt")
+#split_aligned("/data/europarl/common/sent_aligned/cs/de_cs.txt",
+#              "/data/europarl/common/sent_aligned/cs/de_comb.txt",
+#              "/data/europarl/common/sent_aligned/cs/cs_comb.txt")
 
 def rm_dok_names(comb_path, inds_path, out_path):
     """
@@ -207,45 +214,51 @@ def split_giza_results(giza_dir, sent_inds_path, out_dir):
                 #alg_lines[num] = curr_lines[2]
                 #sent_pairs[num] = line_pair
 
-    sent_count = 1
-    with open(sent_inds_path) as sent_inds:
-        for j, line in enumerate(sent_inds):
-            fn, num = line.split()
-            num = int(num)
+    #sent_count = 1
+    #with open(sent_inds_path) as sent_inds:
+    #    for j, line in enumerate(sent_inds):
+    fn = "tmp"
+    for ind in sorted(alg_lines.keys()):
+        #fn, num = line.split()
+        #num = int(num)
 
+        out_path = os.path.join(out_dir, fn)
+        #with open(out_path, "w") as out_file:
+        line_trg, line_src = alg_lines[ind]
+        if line_trg[0] == "#":
+            fn = line_trg[30:-1]
             wc_src = 0
             wc_trg = 0
+            continue
+        word_alg = line_src.split(" })")
+        if word_alg[-1].strip() == "":
+            word_alg = word_alg[:-1]
+        word_alg = [s.split(" ({") for s in word_alg]
+        alg_line = ""
+        for i, (word, inds) in enumerate(word_alg):
+            if i == 0:
+                #ignore NULL word
+                continue
+            inds = inds.split()
+            for ind in inds:
+                ind_trg = str(wc_trg + int(ind))
+                ind_src = str(wc_src + i)
+                alg_line += ind_src + "-" + ind_trg + " "
+        alg_line += "\n"
+        #print(alg_line)
+        with open(out_path, "a") as out_file:
+            out_file.write(alg_line)
 
-            out_path = os.path.join(out_dir, fn)
-            with open(out_path, "w") as out_file:
-                for i in range(num):
-                    line_trg, line_src = alg_lines[sent_count + i]
-                    word_alg = line_src.split(" })")
-                    if word_alg[-1].strip() == "":
-                        word_alg = word_alg[:-1]
-                    word_alg = [s.split(" ({") for s in word_alg]
-                    alg_line = ""
-                    for i, (word, inds) in enumerate(word_alg):
-                        if i == 0:
-                            #ignore NULL word
-                            continue
-                        inds = inds.split()
-                        for ind in inds:
-                            ind_trg = str(wc_trg + int(ind))
-                            ind_src = str(wc_src + i)
-                            alg_line += ind_src + "-" + ind_trg + " "
-                    alg_line += "\n"
-                    out_file.write(alg_line)
+        wc_src += len(word_alg) - 1
+        wc_trg += len(line_trg.strip().split())
+        #print(wc_src, wc_trg)
 
-                    wc_src += len(word_alg) - 1
-                    wc_trg += len(line_trg.strip().split())
+        #sent_count += num
 
-            sent_count += num
-
-split_giza_results("/data/europarl/common/sent_aligned/en_de_def_dist/results/",
-                   "/data/europarl/common/sent_aligned/de_en_defdist/de_sent_inds.txt",
-                   "/data/europarl/common/word_aligned/en_de2/")
-split_giza_results("/data/europarl/common/sent_aligned/de_en_defdist/results/",
-                   "/data/europarl/common/sent_aligned/de_en_defdist/de_sent_inds.txt",
-                   "/data/europarl/common/word_aligned/de_en2/")
+#split_giza_results("/data/europarl/common/sent_aligned/en_de_keep_fn/results/",
+#                   "/data/europarl/common/sent_aligned/de_en_keep_fn/de_sent_inds.txt",
+#                   "/data/europarl/common/word_aligned/en_de3/")
+#split_giza_results("/data/europarl/common/sent_aligned/de_en_keep_fn/results/",
+#                   "/data/europarl/common/sent_aligned/de_en_keep_fn/de_sent_inds.txt",
+#                   "/data/europarl/common/word_aligned/de_en3/")
                    #"/data/europarl/common/test2/")
