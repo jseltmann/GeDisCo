@@ -71,7 +71,7 @@ def intersection_alignment(src2tgt_dir, tgt2src_dir, intersection_dir):
 
                 t2s = t2s_line.split()
                 t2s = [a.split("-") for a in t2s]
-                t2s = [(int(i),int(j)) for (i,j) in t2s]
+                t2s = [(int(j),int(i)) for (i,j) in t2s]
 
                 inter = [tup for tup in s2t if tup in t2s]
                 inter = [str(i) + "-" + str(j) for (i,j) in inter]
