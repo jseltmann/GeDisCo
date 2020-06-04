@@ -164,11 +164,11 @@ def clean_txt(txt_dir):
                 txt_file.write(new_line)
 
 
-clean_txt("/home/users/jseltmann/data/europarl/common/txt/cs_trans")
+#clean_txt("/home/users/jseltmann/data/europarl/common/txt/cs_trans")
 #clean_txt("/home/users/jseltmann/data/europarl/common/test")
 
 
-def append_files(txt_dir, combined_path):
+def append_files(txt_dir, combined_path, comp_dir=None):
     """
     Append txt files into one combined file for better processing by moses.
     Delineate files with lines of "##########" and filenames, so that they
@@ -180,11 +180,20 @@ def append_files(txt_dir, combined_path):
         Directory containing text files to be appended.
     combined_path : str
         Path to save the combined file to.
+    comp_dir : str
+        Only include a file, if there is a file of the same name
+        in this directory.
     """
 
     with open(combined_path, "w") as comb_file:
+        if comp_dir is not None:
+            comp_fns = set(os.listdir(comp_dir))
+        else:
+            comp_fns = set()
         for fn in os.listdir(txt_dir):
             if fn[-4:] == "inds":
+                continue
+            if comp_dir is not None and not fn in comp_fns:
                 continue
             file_path = os.path.join(txt_dir, fn)
             comb_file.write("##############################" + fn + "\n")
@@ -194,8 +203,8 @@ def append_files(txt_dir, combined_path):
                     comb_file.write(line)
 
 
-#append_files("/home/users/jseltmann/data/europarl/common/txt/fr", "/home/users/jseltmann/data/europarl/common/comb/fr_test.txt")
-#append_files("/home/users/jseltmann/data/europarl/common/txt/cs", "/home/users/jseltmann/data/europarl/common/comb/cs.txt")
+#append_files("/home/users/jseltmann/data/europarl/common/txt/de", "/home/users/jseltmann/data/europarl/common/comb/de_comb_compfr.txt", comp_dir="/home/users/jseltmann/data/europarl/common/txt/fr")
+#append_files("/home/users/jseltmann/data/europarl/common/txt/fr", "/home/users/jseltmann/data/europarl/common/comb/fr_comb_compde.txt", comp_dir="/home/users/jseltmann/data/europarl/common/txt/de")
 
 
 def remove_long(txt_dir, long_dir=None):
@@ -214,27 +223,27 @@ def remove_long(txt_dir, long_dir=None):
     """
 
     for fn in os.listdir(txt_dir):
-        if fn[-4:] == "inds":
-            continue
+        #if fn[-4:] == "inds":
+        #    continue
         old_path = os.path.join(txt_dir, fn)
         with open(old_path) as f:
             lines = f.readlines()
         for line in lines:
             if len(line.split()) > 200:
-                old_path_inds = os.path.join(txt_dir, fn[:-3]+"inds")
+                #old_path_inds = os.path.join(txt_dir, fn[:-3]+"inds")
                 if long_dir is not None:
                     new_path = os.path.join(long_dir, fn)
                     os.rename(old_path, new_path)
-                    new_path_inds = os.path.join(long_dir, fn[:-3]+"inds")
-                    os.rename(old_path_inds, new_path_inds)
+                    #new_path_inds = os.path.join(long_dir, fn[:-3]+"inds")
+                    #os.rename(old_path_inds, new_path_inds)
                 else:
                     os.remove(old_path)
-                    os.remove(old_path_inds)
+                    #os.remove(old_path_inds)
                 break
 
 
-#remove_long("/home/users/jseltmann/data/europarl/common/txt/en", 
-#            "/home/users/jseltmann/data/europarl/common/too_long/en")
+#remove_long("/home/users/jseltmann/data/europarl/common/txt/fr_trans", 
+#            "/home/users/jseltmann/data/europarl/common/too_long/fr_trans")
 
 def split_translated(trans_file_path, trans_dir):
     """
@@ -263,5 +272,37 @@ def split_translated(trans_file_path, trans_dir):
                 with open(split_path, "a") as split_file:
                     split_file.write(line)
 
-#split_translated("/home/users/jseltmann/data/europarl/common/comb/cs2_trans.txt",
-#                 "/home/users/jseltmann/data/europarl/common/txt/cs_trans/")
+#split_translated("/home/users/jseltmann/data/europarl/common/comb/fr_trans.txt",
+#                 "/home/users/jseltmann/data/europarl/common/txt/fr_trans/")
+
+def split_dir(to_split, dir_num=10):
+    """
+    Distribute the files in a directory into subdirectories
+    to enable crude parallelization.
+
+    Parameters
+    ----------
+    to_split : str
+        Path to directory.
+    dir_num : int
+        Number of subdirectories to create.
+    """
+
+    for i in range(dir_num):
+        create_path = os.path.join(to_split, str(i))
+        if not os.path.isdir(create_path):
+            os.mkdir(create_path)
+
+    for i, fn in enumerate(os.listdir(to_split)):
+        curr_num = i % dir_num
+        old_path = os.path.join(to_split, fn)
+        if os.path.isdir(old_path):
+            continue
+        new_dir = os.path.join(to_split, str(curr_num))
+        new_path = os.path.join(new_dir, fn)
+        shutil.copyfile(old_path, new_path)
+
+
+#split_dir("/home/users/jseltmann/data/europarl/common/conll/en/", 10)
+#split_dir("/home/users/jseltmann/data/europarl/common/test", 3)
+
