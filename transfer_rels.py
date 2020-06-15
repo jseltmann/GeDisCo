@@ -34,8 +34,8 @@ def read_alignments(align_path):
             algmts = line[:-1].split(" ")
             algmts = [al.split("-") for al in algmts]
             for de, en in algmts:
-                de = int(de)
-                en = int(en)
+                de = int(de) - 1
+                en = int(en) - 1
                 if en in alignments:
                     alignments[en].append(de)
                 else:
@@ -135,16 +135,53 @@ def read_dimlex(dimlex_path):
 
     Return
     ------
-    connectives : [str]
-        List of discourse connectives.
+    connectives : dict
+        Dictionary of discourse connectives and possible senses.
     """
 
     tree = ET.parse(dimlex_path)
     entries = tree.iter("entry")
-    connectives = []
+    connectives = dict()
     for entry in entries:
         word = entry.attrib["word"]
-        connectives.append(word)
+        rels = entry.iter("pdtb3_relation")
+        
+        senses = [rel.attrib["sense"] for rel in rels]
+        #translate between pdtb and conll senses
+        senses_conll = set()
+        for sense in senses:
+            sense = sense.split(".")
+            if sense[-1].startswith("Arg"):
+                sense = sense[:-1]
+            sense = ".".join(sense)
+            #if sense in ["Contingency.Negative-condition"]:
+            #    sense = "Contingency.Condition"
+            if sense.startswith("Comparison.Concession"):
+                sense = "Comparison.Concession"
+            elif sense == "Expansion.Level-of-detail":
+                sense = "Expansion"
+            elif sense == "Expansion.Substitution":
+                sense = "Expansion"
+            elif sense == "Contingency.Negative-condition":
+                sense = "Contingency"
+            elif sense == "Contingency.Purpose":
+                sense = "Contingency"
+            elif sense == "Expansion.Manner":
+                sense = "Expansion"
+            elif sense == "Expansion.Equivalence":
+                sense = "Expansion"
+            elif sense == "Expansion.Disjunction":
+                sense = "Expansion"
+            elif sense == "Temporal.Synchronous":
+                sense = "Temporal.Synchrony"
+            senses_conll.add(sense)
+
+        orths = entry.iter("orth")
+        for orth in orths:
+            parts = orth.iter("part")
+            parts = tuple([part.text for part in parts])
+            connectives[parts] = senses_conll
+
     return connectives
 
 
@@ -169,6 +206,174 @@ def read_txt(txt_path):
             line = line.split()
             tokens += line
     return tokens
+
+
+def is_contained(sense, senses):
+    """
+    Determine, if a sense found by the Wang/Lan parser
+    is contained in a list of senses from the DimLex dataset.
+    Includes some hard-coded rules to translate between
+    CoNLL-2015 and pdtb3 relations.
+
+    Parameters
+    ----------
+    sense : str
+        Sense found by Wang/Lan.
+    senses : [str]
+        Senses for a connective in DimLex.
+
+    Return
+    ------
+    contained : bool
+       True if the sense is contained.
+    """
+    
+    if sense in senses:
+        return True
+
+    if sense.startswith("Expansion.Alternative") and "Expansion" in senses:
+        return True
+    if sense == "Expansion.Restatement" and "Expansion" in senses:
+        return True
+    if sense == "Temporal.Synchrony" and "Temporal.Synchronous" in senses:
+        return True
+
+    return False
+
+
+def trans_implicit(relation, dimlex_connectives, text):
+    """
+    Check if translated implicit relation has become explicit.
+
+    Parameters
+    ----------
+    relation : dict
+        Relation from output of replace_inds.
+    dimlex_connectives : dict
+        DimLex connectives with senses.
+    text : [str]
+        Text of for which the relation has been found.
+    """
+    text1 = [text[i] for i in relation["Arg1"]["TokenList"]]
+    text2 = [text[i] for i in relation["Arg2"]["TokenList"]]
+    sense = relation["Sense"]
+
+    for connective in dimlex_connectives:
+        senses = dimlex_connectives[connective]
+        if not is_contained(sense,senses):#sense in senses:
+            continue
+
+        if len(connective) == 1:
+            words = connective[0].split()
+            if text1[:len(words)] == words:
+                #first argument begins with connective
+                toks = relation["Arg1"]["TokenList"]
+                new_conn = toks[:len(words)]
+                tok_new = toks[len(words):]
+                relation["Arg1"]["TokenList"] = tok_new
+                relation["Connective"]["TokenList"] = new_conn
+                relation["Type"] = "Explicit"
+                return relation
+            if text1[-len(words):] == words:
+                #first argument ends with connective
+                toks = relation["Arg1"]["TokenList"]
+                new_conn = toks[-len(words):]
+                tok_new = toks[:-len(words)]
+                relation["Arg1"]["TokenList"] = tok_new
+                relation["Connective"]["TokenList"] = new_conn
+                relation["Type"] = "Explicit"
+                return relation
+            if text2[:len(words)] == words:
+                #second argument begins with connective
+                toks = relation["Arg2"]["TokenList"]
+                new_conn = toks[:len(words)]
+                tok_new = toks[len(words):]
+                relation["Arg2"]["TokenList"] = tok_new
+                relation["Connective"]["TokenList"] = new_conn
+                relation["Type"] = "Explicit"
+                return relation
+            if text2[-len(words):] == words:
+                #first argument ends with connective
+                toks = relation["Arg2"]["TokenList"]
+                new_conn = toks[-len(words):]
+                tok_new = toks[:-len(words)]
+                relation["Arg2"]["TokenList"] = tok_new
+                relation["Connective"]["TokenList"] = new_conn
+                relation["Type"] = "Explicit"
+                return relation
+        else: #spelling consists of two parts
+            words1 = connective[0].split()
+            words2 = connective[1].split()
+            new_rel = relation
+            found1, found2 = False, False
+            if text1[:len(words1)] == words1:
+                #first argument begins with connective
+                toks = new_rel["Arg1"]["TokenList"]
+                new_conn = toks[:len(words)]
+                tok_new = toks[len(words):]
+                new_rel["Arg1"]["TokenList"] = tok_new
+                new_rel["Connective"]["TokenList"] += new_conn
+                new_rel["Type"] = "Explicit"
+                found1 = True
+            if text1[-len(words):] == words:
+                #first argument ends with connective
+                toks = new_rel["Arg1"]["TokenList"]
+                new_conn = toks[-len(words):]
+                tok_new = toks[:-len(words)]
+                new_rel["Arg1"]["TokenList"] = tok_new
+                new_rel["Connective"]["TokenList"] += new_conn
+                new_rel["Type"] = "Explicit"
+                found1 = True
+            if text2[:len(words)] == words2:
+                #second argument begins with connective
+                toks = new_rel["Arg2"]["TokenList"]
+                new_conn = toks[:len(words)]
+                tok_new = toks[len(words):]
+                new_rel["Arg2"]["TokenList"] = tok_new
+                new_rel["Connective"]["TokenList"] = new_conn
+                new_rel["Type"] = "Explicit"
+                found2 = True
+            if text2[-len(words):] == words2:
+                #first argument ends with connective
+                toks = new_rel["Arg2"]["TokenList"]
+                new_conn = toks[-len(words):]
+                tok_new = toks[:-len(words)]
+                new_rel["Arg2"]["TokenList"] = tok_new
+                new_rel["Connective"]["TokenList"] = new_conn
+                new_rel["Type"] = "Explicit"
+                found2 = True
+        if found1 and found2:
+            return new_rel
+    return relation
+
+
+def trans_explicit(relation, dimlex_connectives, text):
+    """
+    Check if translated explicit relation has become implicit.
+
+    Parameters
+    ----------
+    relation : dict
+        Relation from output of replace_inds.
+    dimlex_connectives : dict
+        DimLex connectives with senses.
+    text : [str]
+        Text of for which the relation has been found.
+    """
+    curr_connective = relation["Connective"]["TokenList"]
+    curr_connective = [text[i].lower() for i in curr_connective]
+    found = False
+    for connective in dimlex_connectives:
+        connective = [part.split() for part in connective]
+        connective = [word for part in connective for word in part]
+        if connective == curr_connective:
+            found = True
+            break
+    if not found:
+        relation["Type"] = "Implicit"
+        relation["Connective"] = []
+    return relation
+
 
 
 def transfer_rels(relations_dir, align_dir, txt_dir, out_dir, dimlex_path):
@@ -199,21 +404,43 @@ def transfer_rels(relations_dir, align_dir, txt_dir, out_dir, dimlex_path):
         if not os.path.exists(align_path):
             continue
         relations = replace_inds(relations, align_path)
-        print(relations[4])
-        6 / 0
 
         txt_path = os.path.join(txt_dir, fn+".txt")
         text = read_txt(txt_path)
 
-        
+        trans_relations = []
         for relation in relations:
+            #make relation arguments contiguous
+            tok_list1 = relation["Arg1"]["TokenList"]
+            if len(tok_list1) > 0:
+                tok_min = min(tok_list1)
+                tok_max = max(tok_list1)
+                tok_list1 = list(range(tok_min,tok_max+1))
+                relation["Arg1"]["TokenList"] = tok_list1
+            
+            tok_list2 = relation["Arg2"]["TokenList"]
+            if len(tok_list2) > 0:
+                tok_min = min(tok_list2)
+                tok_max = max(tok_list2)
+                tok_list2 = list(range(tok_min,tok_max+1))
+                relation["Arg2"]["TokenList"] = tok_list2
+
             if relation["Type"] == "Explicit":
-                connective = relation["Connective"]
-                connective = [text[i] for i in connective]
-                connective = " ".join(connective).lower()
-                if not connective in dimlex_connectives:
-                    relation["Type"] = "Implicit"
-                    relation[
+                relation = trans_explicit(relation, dimlex_connectives, text)
+            else:
+                relation = trans_implicit(relation, dimlex_connectives, text)
+            trans_relations.append(relation)
+        
+        out_path = os.path.join(out_dir, fn)
+        with open(out_path, "w") as out_file:
+            for rel in trans_relations:
+                out_file.write(str(rel))
+                out_file.write("\n")
+
+
+                    
+
+                            
 
 
 
