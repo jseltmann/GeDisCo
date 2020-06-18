@@ -256,7 +256,7 @@ def trans_implicit(relation, dimlex_connectives, text):
     """
     text1 = [text[i] for i in relation["Arg1"]["TokenList"]]
     text2 = [text[i] for i in relation["Arg2"]["TokenList"]]
-    sense = relation["Sense"]
+    sense = relation["Sense"][0]
 
     for connective in dimlex_connectives:
         senses = dimlex_connectives[connective]
@@ -342,8 +342,8 @@ def trans_implicit(relation, dimlex_connectives, text):
                 new_rel["Connective"]["TokenList"] = new_conn
                 new_rel["Type"] = "Explicit"
                 found2 = True
-        if found1 and found2:
-            return new_rel
+            if found1 and found2:
+                return new_rel
     return relation
 
 
