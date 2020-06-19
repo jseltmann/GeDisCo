@@ -88,18 +88,8 @@ def replace_inds(relations, align_path):
 
     trans_rels = []
 
-    #for fn in os.listdir(align_dir):
-    #    if not fn[:-4] in parsed_fns:
-    #        continue
-    #    parsed_path = os.path.join(parsed_dir, fn[:-4])
-    #    align_path = os.path.join(align_dir, fn)
-
-    #    trans_rels[fn] = []
-
     alignments = read_alignments(align_path)
 
-    #    with open(parsed_path) as parsed_f:
-    #        for line in parsed_f:
     for relation in relations:
         arg1_list = relation['Arg1']['TokenList']
         arg1_new = [alignments[n] for n in arg1_list if n in alignments]
@@ -375,7 +365,6 @@ def trans_explicit(relation, dimlex_connectives, text):
     return relation
 
 
-
 def transfer_rels(relations_dir, align_dir, txt_dir, out_dir, dimlex_path):
     """
     Transfer relations for one language to German text.
@@ -434,7 +423,7 @@ def transfer_rels(relations_dir, align_dir, txt_dir, out_dir, dimlex_path):
         out_path = os.path.join(out_dir, fn)
         with open(out_path, "w") as out_file:
             for rel in trans_relations:
-                out_file.write(str(rel))
+                json.dump(rel,out_file)
                 out_file.write("\n")
 
 
