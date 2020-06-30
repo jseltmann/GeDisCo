@@ -361,7 +361,7 @@ def trans_explicit(relation, dimlex_connectives, text):
             break
     if not found:
         relation["Type"] = "Implicit"
-        relation["Connective"] = []
+        relation["Connective"]["TokenList"] = []
     return relation
 
 
@@ -423,7 +423,7 @@ def transfer_rels(relations_dir, align_dir, txt_dir, out_dir, dimlex_path):
         out_path = os.path.join(out_dir, fn)
         with open(out_path, "w") as out_file:
             for rel in trans_relations:
-                json.dump(rel,out_file)
+                json.dump(rel,out_file,ensure_ascii=False)
                 out_file.write("\n")
 
 
