@@ -1,4 +1,5 @@
 import json
+import os
 
 
 def unify_rels(rel1, rel2):
@@ -146,8 +147,14 @@ def unify_langs(dir1, dir2, out_dir, keep_files=False, keep_rels=False):
     fns2 = set(os.listdir(dir2))
 
     fns_both = [fn for fn in fns1 if fn in fns2]
+    num_files = len(fns_both)
 
-    for fn in fns_both:
+    if not os.path.exists(out_dir):
+        os.mkdir(out_dir)
+
+    for i, fn in enumerate(fns_both):
+        if i % 1000 == 0:
+            print(i, "/", num_files)
         path1 = os.path.join(dir1, fn)
         path2 = os.path.join(dir2, fn)
         out_path = os.path.join(out_dir, fn)
@@ -166,3 +173,8 @@ def unify_langs(dir1, dir2, out_dir, keep_files=False, keep_rels=False):
             shutil.copy(prev_path, new_path)
 
 
+#def unify_langs(dir1, dir2, out_dir, keep_files=False, keep_rels=False):
+unify_langs("/data/europarl/common/transferred/from_en", "/data/europarl/common/transferred/from_fr", "/data/europarl/common/parsed/en_fr")
+unify_langs("/data/europarl/common/transferred/from_en", "/data/europarl/common/transferred/from_cs", "/data/europarl/common/parsed/en_cs")
+unify_langs("/data/europarl/common/transferred/from_cs", "/data/europarl/common/transferred/from_fr", "/data/europarl/common/parsed/cs_fr")
+unify_langs("/data/europarl/common/parsed/cs_fr", "/data/europarl/common/transferred/from_en", "/data/europarl/common/parsed/cs_fr_en")
