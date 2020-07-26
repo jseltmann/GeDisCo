@@ -1,6 +1,7 @@
 import os
 import json
 from lxml import etree
+import benepar
 
 
 def trans_arg(arg, tok_tups):
@@ -267,15 +268,53 @@ def transfer_to_pcc_dir(parsed_dir, txt_dir, out_dir):
 #                      "/data/europarl/common/txt/de",
 #                      "/data/europarl/common/pcc_labels/from_fr")
 
-transfer_to_pcc_dir("/data/europarl/common/parsed/cs_fr",
-                      "/data/europarl/common/txt/de",
-                      "/data/europarl/common/pcc_labels/cs_fr")
-transfer_to_pcc_dir("/data/europarl/common/parsed/en_cs",
-                      "/data/europarl/common/txt/de",
-                      "/data/europarl/common/pcc_labels/en_cs")
-transfer_to_pcc_dir("/data/europarl/common/parsed/en_fr",
-                      "/data/europarl/common/txt/de",
-                      "/data/europarl/common/pcc_labels/en_fr")
-transfer_to_pcc_dir("/data/europarl/common/parsed/cs_fr_en",
-                      "/data/europarl/common/txt/de",
-                      "/data/europarl/common/pcc_labels/cs_fr_en")
+#transfer_to_pcc_dir("/data/europarl/common/parsed/cs_fr",
+#                      "/data/europarl/common/txt/de",
+#                      "/data/europarl/common/pcc_labels/cs_fr")
+#transfer_to_pcc_dir("/data/europarl/common/parsed/en_cs",
+#                      "/data/europarl/common/txt/de",
+#                      "/data/europarl/common/pcc_labels/en_cs")
+#transfer_to_pcc_dir("/data/europarl/common/parsed/en_fr",
+#                      "/data/europarl/common/txt/de",
+#                      "/data/europarl/common/pcc_labels/en_fr")
+#transfer_to_pcc_dir("/data/europarl/common/parsed/cs_fr_en",
+#                      "/data/europarl/common/txt/de",
+#                      "/data/europarl/common/pcc_labels/cs_fr_en")
+
+def parse_berkeley(inp_dir, out_dir):
+    """
+    Parse file using the berkely neural parser.
+
+    Parameters
+    ----------
+    inp_dir : str
+        Directory containing tokenized text files.
+    out_dir : str
+        Directory to save produced parses to.
+    """
+    
+    if not os.path.exists(out_dir):
+        os.mkdir(out_dir)
+
+    parser = benepar.Parser("benepar_de")
+
+    for i, fn in enumerate(os.listdir(inp_dir)):
+        if i == 10:
+            print(i)
+        if i % 5000 == 0:
+            print(i)
+        if fn[-4:] == "inds":
+            continue
+        txt_path = os.path.join(inp_dir,fn)
+        out_path = os.path.join(out_dir, fn[:-4]+".ptree")
+        if os.path.exists(out_path):
+            continue
+
+        with open(out_path, "w") as out_file:
+            for line in open(txt_path):
+                tree = parser.parse(line.split())
+                tree.pprint(stream=out_file)
+            
+        
+parse_berkeley("/data/europarl/common/txt/de_shortened", "/data/europarl/common/syntax/de/berkeley")
+#parse_berkeley("/data/europarl/common/test", "/data/europarl/common/test2")
