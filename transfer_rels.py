@@ -1,6 +1,7 @@
 import os
 import json
 import xml.etree.ElementTree as ET
+from tqdm import tqdm
 
 
 def read_alignments(align_path):
@@ -109,9 +110,6 @@ def replace_inds(relations, align_path):
         trans_rels.append(relation)
 
     return trans_rels
-
-#translate_parsed("/data/europarl/common/parsed/en",
-#                 "/data/europarl/common/word_aligned/de_en_intersection")
 
 
 def read_dimlex(dimlex_path):
@@ -398,7 +396,7 @@ def transfer_rels(relations_dir, align_dir, txt_dir, out_dir, dimlex_path):
         text = read_txt(txt_path)
 
         trans_relations = []
-        for relation in relations:
+        for relation in tqdm(relations):
             #make relation arguments contiguous
             tok_list1 = relation["Arg1"]["TokenList"]
             if len(tok_list1) > 0:
@@ -418,6 +416,11 @@ def transfer_rels(relations_dir, align_dir, txt_dir, out_dir, dimlex_path):
                 relation = trans_explicit(relation, dimlex_connectives, text)
             else:
                 relation = trans_implicit(relation, dimlex_connectives, text)
+
+            tok_list1 = relation["Arg1"]["TokenList"]
+            tok_list2 = relation["Arg2"]["TokenList"]
+            if tok_list1 == [] or tok_list2 == []:
+                continue
             trans_relations.append(relation)
         
         out_path = os.path.join(out_dir, fn)
@@ -427,13 +430,16 @@ def transfer_rels(relations_dir, align_dir, txt_dir, out_dir, dimlex_path):
                 out_file.write("\n")
 
 
-                    
-
-                            
-
-
-
-
+transfer_rels("/data/europarl/common/parsed/fr",
+              "/data/europarl/common/word_aligned/fr/de_fr_intersection",
+              "/data/europarl/common/txt/de",
+              "/data/europarl/common/transferred/from_fr",
+              "/data/dimlex/DimLex.xml")
+transfer_rels("/data/europarl/common/parsed/cs",
+              "/data/europarl/common/word_aligned/cs/de_cs_intersection",
+              "/data/europarl/common/txt/de",
+              "/data/europarl/common/transferred/from_cs",
+              "/data/dimlex/DimLex.xml")
 transfer_rels("/data/europarl/common/parsed/en",
               "/data/europarl/common/word_aligned/de_en_intersection",
               "/data/europarl/common/txt/de",
