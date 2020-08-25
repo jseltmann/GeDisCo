@@ -79,9 +79,9 @@ def intersection_alignment(src2tgt_dir, tgt2src_dir, intersection_dir):
                 int_file.write(inter)
                 int_file.write("\n")
 
-intersection_alignment("/data/europarl/common/word_aligned/de_en3",
-                       "/data/europarl/common/word_aligned/en_de3",
-                       "/data/europarl/common/word_aligned/de_en_intersection")
+intersection_alignment("/data/europarl/common/word_aligned/cs/de_cs",
+                       "/data/europarl/common/word_aligned/cs/cs_de",
+                       "/data/europarl/common/word_aligned/cs/de_cs_intersection")
 
 
 def split_aligned(aligned_path, comb1_path, comb2_path):
@@ -118,9 +118,10 @@ def split_aligned(aligned_path, comb1_path, comb2_path):
                 comb2.write(l2)
                 comb2.write("\n")
                 prev_line_hash = False
-#split_aligned("/data/europarl/common/sent_aligned/cs/de_cs.txt",
-#              "/data/europarl/common/sent_aligned/cs/de_comb.txt",
-#              "/data/europarl/common/sent_aligned/cs/cs_comb.txt")
+#split_aligned("/data/europarl/common/sent_aligned/fr/de_fr.txt",
+#              "/data/europarl/common/sent_aligned/fr/de_comb.txt",
+#              "/data/europarl/common/sent_aligned/fr/fr_comb.txt")
+
 
 def rm_dok_names(comb_path, inds_path, out_path):
     """
@@ -166,7 +167,8 @@ def rm_dok_names(comb_path, inds_path, out_path):
 #             "/data/europarl/common/sent_aligned/de_en4/de_no_fn.txt")
 
 
-def split_giza_results(giza_dir, sent_inds_path, out_dir):
+#def split_giza_results(giza_dir, sent_inds_path, out_dir):
+def split_giza_results(giza_dir, out_dir):
     """
     Split the results of the giza run according to the europarl files.
 
@@ -255,10 +257,8 @@ def split_giza_results(giza_dir, sent_inds_path, out_dir):
 
         #sent_count += num
 
-#split_giza_results("/data/europarl/common/sent_aligned/en_de_keep_fn/results/",
-#                   "/data/europarl/common/sent_aligned/de_en_keep_fn/de_sent_inds.txt",
-#                   "/data/europarl/common/word_aligned/en_de3/")
-#split_giza_results("/data/europarl/common/sent_aligned/de_en_keep_fn/results/",
-#                   "/data/europarl/common/sent_aligned/de_en_keep_fn/de_sent_inds.txt",
-#                   "/data/europarl/common/word_aligned/de_en3/")
-                   #"/data/europarl/common/test2/")
+
+#split_giza_results("/data/europarl/common/sent_aligned/fr/fr_de/results/",
+#                   "/data/europarl/common/word_aligned/fr/fr_de/")
+#split_giza_results("/data/europarl/common/sent_aligned/fr/de_fr/results/",
+#                   "/data/europarl/common/word_aligned/fr/de_fr/")

@@ -63,8 +63,12 @@ def read_relations(parsed_path):
     relations = []
     with open(parsed_path) as parsed_file:
         for line in parsed_file:
-            as_dict = json.loads(line)
-            relations.append(as_dict)
+            try:
+                as_dict = json.loads(line)
+                relations.append(as_dict)
+            except Exception as e:
+                print(line)
+                raise e
     return relations
 
 
@@ -245,6 +249,7 @@ def trans_implicit(relation, dimlex_connectives, text):
     text1 = [text[i] for i in relation["Arg1"]["TokenList"]]
     text2 = [text[i] for i in relation["Arg2"]["TokenList"]]
     sense = relation["Sense"][0]
+    relation["orig_type"] = "Implicit"
 
     for connective in dimlex_connectives:
         senses = dimlex_connectives[connective]
@@ -360,6 +365,7 @@ def trans_explicit(relation, dimlex_connectives, text):
     if not found:
         relation["Type"] = "Implicit"
         relation["Connective"]["TokenList"] = []
+    relation["orig_type"] = "Explicit"
     return relation
 
 
@@ -383,7 +389,7 @@ def transfer_rels(relations_dir, align_dir, txt_dir, out_dir, dimlex_path):
 
     dimlex_connectives = read_dimlex(dimlex_path)
 
-    for fn in os.listdir(relations_dir):
+    for fn in tqdm(os.listdir(relations_dir)):
         parsed_path = os.path.join(relations_dir, fn)
         relations = read_relations(parsed_path)
 
@@ -396,7 +402,7 @@ def transfer_rels(relations_dir, align_dir, txt_dir, out_dir, dimlex_path):
         text = read_txt(txt_path)
 
         trans_relations = []
-        for relation in tqdm(relations):
+        for i, relation in enumerate(relations):
             #make relation arguments contiguous
             tok_list1 = relation["Arg1"]["TokenList"]
             if len(tok_list1) > 0:
@@ -430,18 +436,18 @@ def transfer_rels(relations_dir, align_dir, txt_dir, out_dir, dimlex_path):
                 out_file.write("\n")
 
 
-transfer_rels("/data/europarl/common/parsed/fr",
-              "/data/europarl/common/word_aligned/fr/de_fr_intersection",
-              "/data/europarl/common/txt/de",
-              "/data/europarl/common/transferred/from_fr",
-              "/data/dimlex/DimLex.xml")
-transfer_rels("/data/europarl/common/parsed/cs",
-              "/data/europarl/common/word_aligned/cs/de_cs_intersection",
-              "/data/europarl/common/txt/de",
-              "/data/europarl/common/transferred/from_cs",
-              "/data/dimlex/DimLex.xml")
-transfer_rels("/data/europarl/common/parsed/en",
-              "/data/europarl/common/word_aligned/de_en_intersection",
-              "/data/europarl/common/txt/de",
-              "/data/europarl/common/transferred/from_en",
-              "/data/dimlex/DimLex.xml")
+#transfer_rels("/data/europarl/common/parsed/fr",
+#              "/data/europarl/common/word_aligned/fr/de_fr_intersection",
+#              "/data/europarl/common/txt/de",
+#              "/data/europarl/common/transferred/from_fr",
+#              "/data/dimlex/DimLex.xml")
+#transfer_rels("/data/europarl/common/parsed/cs",
+#              "/data/europarl/common/word_aligned/cs/de_cs_intersection",
+#              "/data/europarl/common/txt/de",
+#              "/data/europarl/common/transferred/from_cs",
+#              "/data/dimlex/DimLex.xml")
+#transfer_rels("/data/europarl/common/parsed/en",
+#              "/data/europarl/common/word_aligned/en/de_en_intersection",
+#              "/data/europarl/common/txt/de",
+#              "/data/europarl/common/transferred/from_en",
+#              "/data/dimlex/DimLex.xml")

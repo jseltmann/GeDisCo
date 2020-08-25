@@ -2,6 +2,10 @@ import os
 import json
 from lxml import etree
 import benepar
+from tqdm import tqdm
+import html
+from nltk.tree import Tree, ParentedTree
+import pickle
 
 
 def trans_arg(arg, tok_tups):
@@ -30,7 +34,7 @@ def trans_arg(arg, tok_tups):
         new_tok_list.append(new_tok)
 
     new_arg["TokenList"] = new_tok_list
-    
+
     #generate CharacterSpanList
     split_lists = []
     curr_list = []
@@ -130,9 +134,12 @@ def transfer_to_conll_dir(parsed_dir, txt_dir, out_dir):
     Wrapper for transfer_to_conll to wok over directories.
     """
 
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
+
     fns = os.listdir(parsed_dir)
 
-    for fn in fns:
+    for fn in tqdm(fns):
         parsed_path = os.path.join(parsed_dir, fn)
         txt_path = os.path.join(txt_dir, fn+".txt")
         out_path = os.path.join(out_dir, fn+".json")
@@ -140,16 +147,34 @@ def transfer_to_conll_dir(parsed_dir, txt_dir, out_dir):
         transfer_to_conll(parsed_path, txt_path, out_path)
 
 
+#print("CoNLL En")
+#transfer_to_conll_dir("/data/europarl/common/transferred/from_en",
+#                      "/data/europarl/common/txt/de",
+#                      "/data/europarl/common/conll_labels/from_en")
+#print("CoNLL En_Cs")
+#transfer_to_conll_dir("/data/europarl/common/parsed/en_cs",
+#                      "/data/europarl/common/txt/de",
+#                      "/data/europarl/common/conll_labels/en_cs")
+#print("CoNLL En_Fr")
+#transfer_to_conll_dir("/data/europarl/common/parsed/en_fr",
+#                      "/data/europarl/common/txt/de",
+#                      "/data/europarl/common/conll_labels/en_fr")
+#print("CoNLL Cs_Fr")
+#transfer_to_conll_dir("/data/europarl/common/parsed/cs_fr",
+#                      "/data/europarl/common/txt/de",
+#                      "/data/europarl/common/conll_labels/cs_fr")
+#print("CoNLL Cs_Fr_En")
+#transfer_to_conll_dir("/data/europarl/common/parsed/cs_fr_en",
+#                      "/data/europarl/common/txt/de",
+#                      "/data/europarl/common/conll_labels/cs_fr_en")
+#print("CoNLL Cs")
 #transfer_to_conll_dir("/data/europarl/common/transferred/from_cs",
 #                      "/data/europarl/common/txt/de",
 #                      "/data/europarl/common/conll_labels/from_cs")
+#print("CoNLL Fr")
 #transfer_to_conll_dir("/data/europarl/common/transferred/from_fr",
 #                      "/data/europarl/common/txt/de",
 #                      "/data/europarl/common/conll_labels/from_fr")
-#transfer_to_conll_dir("/data/europarl/common/test",
-#                      "/data/europarl/common/txt/de",
-#                      "/data/europarl/common/test2")
-
 
 
 def transfer_to_pcc(parsed_path, txt_path, out_path):
@@ -248,9 +273,10 @@ def transfer_to_pcc_dir(parsed_dir, txt_dir, out_dir):
     if not os.path.exists(out_dir):
         os.mkdir(out_dir)
 
-    for i, fn in enumerate(fns):
-        if i % 5000 == 0:
-            print(out_dir.split("/")[-1], ": ", i)
+    #for i, fn in enumerate(fns):
+        #if i % 5000 == 0:
+        #    print(out_dir.split("/")[-1], ": ", i)
+    for fn in tqdm(fns):
         parsed_path = os.path.join(parsed_dir, fn)
         txt_path = os.path.join(txt_dir, fn+".txt")
         out_path = os.path.join(out_dir, fn+".xml")
@@ -258,28 +284,36 @@ def transfer_to_pcc_dir(parsed_dir, txt_dir, out_dir):
         transfer_to_pcc(parsed_path, txt_path, out_path)
 
 
+#print("PCC Cs")
 #transfer_to_pcc_dir("/data/europarl/common/transferred/from_cs",
 #                      "/data/europarl/common/txt/de",
 #                      "/data/europarl/common/pcc_labels/from_cs")
+#print("PCC En")
 #transfer_to_pcc_dir("/data/europarl/common/transferred/from_en",
 #                      "/data/europarl/common/txt/de",
 #                      "/data/europarl/common/pcc_labels/from_en")
+#print("PCC Fr")
 #transfer_to_pcc_dir("/data/europarl/common/transferred/from_fr",
 #                      "/data/europarl/common/txt/de",
 #                      "/data/europarl/common/pcc_labels/from_fr")
-
+#
+#print("PCC Cs_Fr")
 #transfer_to_pcc_dir("/data/europarl/common/parsed/cs_fr",
 #                      "/data/europarl/common/txt/de",
 #                      "/data/europarl/common/pcc_labels/cs_fr")
+#print("PCC En_Cs")
 #transfer_to_pcc_dir("/data/europarl/common/parsed/en_cs",
 #                      "/data/europarl/common/txt/de",
 #                      "/data/europarl/common/pcc_labels/en_cs")
+#print("PCC En_Fr")
 #transfer_to_pcc_dir("/data/europarl/common/parsed/en_fr",
 #                      "/data/europarl/common/txt/de",
 #                      "/data/europarl/common/pcc_labels/en_fr")
+#print("PCC Cs_Fr_En")
 #transfer_to_pcc_dir("/data/europarl/common/parsed/cs_fr_en",
 #                      "/data/europarl/common/txt/de",
 #                      "/data/europarl/common/pcc_labels/cs_fr_en")
+
 
 def parse_berkeley(inp_dir, out_dir):
     """
@@ -316,5 +350,145 @@ def parse_berkeley(inp_dir, out_dir):
                 tree.pprint(stream=out_file)
             
         
-parse_berkeley("/data/europarl/common/txt/de_shortened", "/data/europarl/common/syntax/de/berkeley")
+#parse_berkeley("/data/europarl/common/txt/de_shortened", "/data/europarl/common/syntax/de/berkeley")
 #parse_berkeley("/data/europarl/common/test", "/data/europarl/common/test2")
+
+
+def remove_incomplete(tiger_dir, txt_dir):
+    """
+    Remove files from the tiger xml directory,
+    that weren't completely translated into the tiger format.
+
+    Parameters
+    ----------
+    tiger_dir : str
+        Directory containing tiger xml files.
+    txt_dir : str
+        Directory containing corresponding tokenized text files.
+    """
+
+    fns = os.listdir(tiger_dir)
+    fns = [fn.split(".")[0] for fn in fns]
+
+    for fn in tqdm(fns):
+        tiger_path = os.path.join(tiger_dir, fn+".xml")
+        tree = etree.parse(tiger_path)
+        toks = tree.findall(".//t")
+
+        txt_path = os.path.join(txt_dir, fn+".txt")
+        with open(txt_path) as txt_file:
+            text = txt_file.read()
+            words = text.split()
+            #num = 0
+            #for line in txt_file:
+            #    words = line.split()
+            #    num += len(words)
+
+        if len(words) != len(toks):
+            os.remove(tiger_path)
+
+        for word, tok in zip(words, toks):
+            tok = tok.attrib["word"]
+            tok = html.unescape(tok)
+            if word != tok:
+                os.remove(tiger_path)
+                break
+
+
+#remove_incomplete("/data/europarl/common/syntax/de/tiger",
+#                  "/data/europarl/common/txt/de") 
+
+
+def replace_leaves(tree, sent):
+    """
+    Recursively replace special symbols introduced by Berkeley parser.
+
+    Parameters
+    ----------
+    tree : nltk.tree.Tree
+        Parse tree output by Berkeley neural parser.
+    sent : [str]
+        Corresponding sentence with correct symbols,
+        word-tokenized.
+
+    Return
+    ------
+    res_tree : nltk.tree.Tree or str
+        Tree with correct symbols.
+        Is str when it is a leaf.
+    remaining_sent : [str]
+        Words not used for replacement this far
+    """
+
+    if isinstance(tree, str):
+        res_tree = sent[0]
+        remaining_sent = sent[1:]
+    else:
+        label = tree.label()
+        new_children = []
+        remaining_sent = sent
+        for child in tree:
+            child, reamining_sent = replace_leaves(child, remaining_sent)
+            new_children.append(child)
+        res_tree = Tree(label, new_children)
+
+    return res_tree, remaining_sent
+
+
+def berk2parsermap(berkeley_dir, txt_dir, parsermap_path):
+    """
+    Save berkeley parse trees as dict.
+
+    Create a dictionary that contains the parse tree for
+    each sentence and save it as pickle.
+
+    Parameters
+    ----------
+    berkeley_dir : str
+        Path to directory containing parsed files.
+    txt_dir : str
+        Directory containing tokenized text files.
+    parsermap_path : str
+        Path to save result dictionary to.
+    """
+
+    parsermap = dict()
+    for fn in tqdm(os.listdir(berkeley_dir)):
+        txt_fn = fn.split(".")[0] + ".txt"
+        txt_path = os.path.join(txt_dir, txt_fn)
+        with open(txt_path) as txt_file:
+            lines = txt_file.readlines()
+            sents = [line.split() for line in lines]
+
+        berk_path = os.path.join(berkeley_dir, fn)
+        with open(berk_path) as berkeley_file:
+            cont = berkeley_file.read()
+            tree_strs = cont.split("\n(")
+            tree_strs_par = ["(" + tree_str for tree_str in tree_strs[1:]]
+            tree_strs = [tree_strs[0]] + tree_strs_par
+            #trees = [Tree.fromstring(tree_str) for tree_str in tree_strs]
+            trees = []
+            for tree_str in tree_strs:
+                try:
+                    tree = Tree.fromstring(tree_str)
+                    trees.append(tree)
+                except Exception as e:
+                    tree = None
+            for tree, sent in zip(trees, sents):
+                if tree is None:
+                    continue
+                tree, _ = replace_leaves(tree, sent)
+                sent = " ".join(sent)
+                ptree = ParentedTree.convert(tree)
+                parsermap[sent] = ptree
+
+    with open(parsermap_path, "wb") as parsermap_file:
+        pickle.dump(parsermap, parsermap_file)
+        parsermap[sent] = tree
+        with open(parsermap_path, "wb") as parsermap_file:
+            pickle.dump(parsermap, parsermap_file)
+
+
+#berk2parsermap("/data/europarl/common/syntax/de/berkeley",
+#               "/data/europarl/common/txt/de",
+#               "/data/europarl/common/syntax/de/parsermap_berkeley.pickle")

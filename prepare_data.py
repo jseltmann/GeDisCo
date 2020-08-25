@@ -1,7 +1,14 @@
 import os
 import shutil
 import xml.etree.ElementTree as ET
+import lxml.etree
 import re
+import json
+from tqdm import tqdm
+from nltk.parse import stanford
+from nltk.tree import ParentedTree
+import pickle
+
 
 def get_europarl_overlap(xml_path, langs):
     """
@@ -156,16 +163,14 @@ def clean_txt(txt_dir):
                     return ret_str
                 
                 new_line = re.sub(num_reg, num_repl, line)
-                regs = [r"&#93;", r"&#91;", r"&quot;", r"&apos;", r"&amp;", r"@-@"]
-                repls = ["]", "[", "„", "\'", "&", "-"]
+                regs = [r"&#93;", r"&#91;", r"&quot;", r"&apos;", r"&amp;", r"@-@", r"-LSB-", r"-RSB-"]
+                repls = ["]", "[", "„", "\'", "&", "-", "(", ")"]
                 for reg, repl in zip(regs, repls):
                     #print(reg, repl)
                     new_line = re.sub(reg, lambda m: repl, new_line)
                 txt_file.write(new_line)
 
-
-#clean_txt("/home/users/jseltmann/data/europarl/common/txt/cs_trans")
-#clean_txt("/home/users/jseltmann/data/europarl/common/test")
+#clean_txt("/data/europarl/common/txt/fr_trans")
 
 
 def append_files(txt_dir, combined_path, comp_dir=None):
@@ -203,8 +208,8 @@ def append_files(txt_dir, combined_path, comp_dir=None):
                     comb_file.write(line)
 
 
-#append_files("/home/users/jseltmann/data/europarl/common/txt/de", "/home/users/jseltmann/data/europarl/common/comb/de_comb_compfr.txt", comp_dir="/home/users/jseltmann/data/europarl/common/txt/fr")
-#append_files("/home/users/jseltmann/data/europarl/common/txt/fr", "/home/users/jseltmann/data/europarl/common/comb/fr_comb_compde.txt", comp_dir="/home/users/jseltmann/data/europarl/common/txt/de")
+#append_files("/home/users/jseltmann/data/europarl/common/txt/de", "/home/users/jseltmann/data/europarl/common/comb/de_comb_compcs.txt", comp_dir="/home/users/jseltmann/data/europarl/common/txt/cs_trans")
+#append_files("/home/users/jseltmann/data/europarl/common/txt/cs_trans", "/home/users/jseltmann/data/europarl/common/comb/cs_comb_compde.txt", comp_dir="/home/users/jseltmann/data/europarl/common/txt/de")
 
 
 def remove_long(txt_dir, long_dir=None):
@@ -226,6 +231,9 @@ def remove_long(txt_dir, long_dir=None):
         #if fn[-4:] == "inds":
         #    continue
         old_path = os.path.join(txt_dir, fn)
+        if fn[-4:] == "inds":
+            os.remove(old_path)
+            continue
         with open(old_path) as f:
             lines = f.readlines()
         for line in lines:
@@ -242,6 +250,8 @@ def remove_long(txt_dir, long_dir=None):
                 break
 
 
+#remove_long("/data/europarl/common/txt/de_shortened/", 
+#            "/data/europarl/common/txt/de_long")
 #remove_long("/home/users/jseltmann/data/europarl/common/txt/fr_trans", 
 #            "/home/users/jseltmann/data/europarl/common/too_long/fr_trans")
 
@@ -306,3 +316,146 @@ def split_dir(to_split, dir_num=10):
 #split_dir("/home/users/jseltmann/data/europarl/common/conll/en/", 10)
 #split_dir("/home/users/jseltmann/data/europarl/common/test", 3)
 
+
+def clean_tiger(tiger_dir, txt_dir):
+    """
+    Replace special tokens in Tiger XML with the correct ones.
+
+    The Berkeley neural parser introduces some special notations
+    for specific tokens, such as "-LRB-" for "(".
+    Therefore, this function replaces all word attributes in a tiger
+    XML file with the words from the corresponding txt file.
+
+    Parameters
+    ----------
+    tiger_dir : str
+        Path to directory containing the tiger xml files to be changed.
+    txt_dir : str
+        Path to directory containing the word files from which
+        to take the words to be inserted.
+    """
+
+    for fn in os.listdir(tiger_dir):
+        fn = fn.split(".")[0]
+        txt_path = os.path.join(txt_dir, fn+".txt")
+        with open(txt_path) as txt_file:
+            txt = txt_file.read()
+            words = txt.split()
+
+        tiger_path = os.path.join(tiger_dir, fn+".xml")
+        with open(tiger_path) as tiger_file:
+            lines = tiger_file.readlines()
+
+        word_count = 0
+        with open(tiger_path, "w") as tiger_file:
+            for line in lines:
+                match = re.search(r'word=\"(\S+)\"', line)
+                #if re.search(r'word=\"\S+\"', line):
+                if match:
+                    word = words[word_count]
+                    if not '"' in word and not match.group(1)[0] == "&":
+                    #if not match.group(1)[0] == "&":
+                        repl = r'word="' + word + '"'
+                        line = re.sub(r'word=\"\S+\"', repl, line)
+                    word_count += 1
+                tiger_file.write(line)
+
+
+#clean_tiger("/data/europarl/common/like_pcc/train/syntax",
+#            "/data/europarl/common/txt/de")
+#clean_tiger("/data/europarl/common/test",
+#            "/data/europarl/common/txt/de")
+
+
+def remove_empty_args(conll_dir, cp_dir=None):
+    """
+    Remove files containing empty arguments.
+
+    The GermanShallowDiscourseParser throws errors
+    during training when an argument of a relations
+    contains no words.
+
+    Parameters
+    ----------
+    conll_dir : str
+        Directory containing conll files.
+    cp_dir : str
+        Directory to copy the files to.
+        If None, they are deleted.
+    """
+
+    for fn in tqdm(os.listdir(conll_dir)):
+        conll_path = os.path.join(conll_dir, fn)
+        empty_arg = False
+        with open(conll_path) as conll_file:
+            for line in conll_file:
+                rel = json.loads(line)
+                if rel["Arg1"]["TokenList"] == [] or \
+                        rel["Arg2"]["TokenList"] == []:
+                    empty_arg = True
+                    break
+        if empty_arg:
+            if cp_dir:
+                cp_path = os.path.join(cp_dir, fn)
+                shutil.move(conll_path, cp_path)
+            else:
+                os.remove(conll_path)
+
+#remove_empty_args("/data/europarl/common/transferred/from_en",
+#                  "/data/europarl/common/transferred/from_en_empty_args")
+#remove_empty_args("/data/europarl/common/transferred/from_fr",
+#                  "/data/europarl/common/transferred/from_fr_empty_args")
+#remove_empty_args("/data/europarl/common/transferred/from_cs",
+#                  "/data/europarl/common/transferred/from_cs_empty_args")
+
+
+def create_parsermap(txt_dir, parsermap_path, comp_path=None):
+    """
+    Use stanford parser to create parsemap for German texts.
+
+    Parse each sentence in the German text and save the resulting
+    trees in a dict. The dict is used in the training of the
+    GermanShallowDiscourseParser. This code is largely copied from
+    ConnectiveClassifier.py in the repository of the parser.
+
+    Parameters
+    ----------
+    txt_dir : str
+        Directory to parse.
+    parsermap_path : str
+        Path to which to save resulting dict.
+    comp_path : str
+        Path to preexisting parsermap from which to
+        take trees for sentences that have already been parsed.
+    """
+
+    os.environ["JAVAHOME"] = "/usr/lib/jvm/java-1.8.0-openjdk-amd64"
+    os.environ["STANFORD_PARSER"] = "/project/parsers/stanfordparser/stanford-parser-full-2018-10-17/"
+    os.environ["STANFORD_MODELS"] = "/project/parsers/stanfordparser/stanford-parser-full-2018-10-17/"
+    os.environ["CLASSPATH"] = "/project/parsers/stanfordparser/stanford-parser-full-2018-10-17/stanford-parser.jar"
+
+    lexparser = stanford.StanfordParser(model_path='edu/stanford/nlp/models/lexparser/germanPCFG.ser.gz')
+
+    if comp_path is None:
+        parsermap = dict()
+    else:
+        with open(comp_path, "rb") as comp_file:
+            parsermap = pickle.load(comp_file)
+
+    for fn in tqdm(os.listdir(txt_dir)):
+        txt_path = os.path.join(txt_dir, fn)
+        for line in open(txt_path):
+            sent = line.strip()
+            if sent in parsermap:
+                continue
+            tree = lexparser.parse(re.sub("\)", "]", re.sub("\(", "[", sent)).split())
+            ptree = ParentedTree.convert(tree)
+            parsermap[sent] = ptree
+
+    with open(parsermap_path, "wb") as pfile:
+        pickle.dump(parsermap, pfile)
+
+#create_parsermap("/data/europarl/common/split/de_txt/train/",
+#                 "/data/europarl/common/split/de_syntax/train_parsermap.pickle")
+#create_parsermap("/data/europarl/common/like_pcc/train/tokenized/",
+#                 "/data/europarl/common/like_pcc/train_parsermap.pickle")

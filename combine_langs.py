@@ -1,5 +1,6 @@
 import json
 import os
+from tqdm import tqdm
 
 
 def unify_rels(rel1, rel2):
@@ -152,9 +153,7 @@ def unify_langs(dir1, dir2, out_dir, keep_files=False, keep_rels=False):
     if not os.path.exists(out_dir):
         os.mkdir(out_dir)
 
-    for i, fn in enumerate(fns_both):
-        if i % 1000 == 0:
-            print(i, "/", num_files)
+    for fn in tqdm(fns_both):
         path1 = os.path.join(dir1, fn)
         path2 = os.path.join(dir2, fn)
         out_path = os.path.join(out_dir, fn)
@@ -174,7 +173,9 @@ def unify_langs(dir1, dir2, out_dir, keep_files=False, keep_rels=False):
 
 
 #def unify_langs(dir1, dir2, out_dir, keep_files=False, keep_rels=False):
-unify_langs("/data/europarl/common/transferred/from_en", "/data/europarl/common/transferred/from_fr", "/data/europarl/common/parsed/en_fr")
-unify_langs("/data/europarl/common/transferred/from_en", "/data/europarl/common/transferred/from_cs", "/data/europarl/common/parsed/en_cs")
-unify_langs("/data/europarl/common/transferred/from_cs", "/data/europarl/common/transferred/from_fr", "/data/europarl/common/parsed/cs_fr")
-unify_langs("/data/europarl/common/parsed/cs_fr", "/data/europarl/common/transferred/from_en", "/data/europarl/common/parsed/cs_fr_en")
+#unify_langs("/data/europarl/common/transferred/from_en", "/data/europarl/common/transferred/from_fr", "/data/europarl/common/parsed/en_fr")
+#unify_langs("/data/europarl/common/transferred/from_en", "/data/europarl/common/transferred/from_cs", "/data/europarl/common/parsed/en_cs")
+#unify_langs("/data/europarl/common/transferred/from_cs", "/data/europarl/common/transferred/from_fr", "/data/europarl/common/parsed/cs_fr")
+#unify_langs("/data/europarl/common/parsed/cs_fr", "/data/europarl/common/transferred/from_en", "/data/europarl/common/parsed/cs_fr_en")
+
+
