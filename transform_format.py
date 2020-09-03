@@ -131,7 +131,7 @@ def transfer_to_conll(parsed_path, txt_path, out_path):
 
 def transfer_to_conll_dir(parsed_dir, txt_dir, out_dir):
     """
-    Wrapper for transfer_to_conll to wok over directories.
+    Wrapper for transfer_to_conll to work over directories.
     """
 
     if not os.path.exists(out_dir):
@@ -273,9 +273,6 @@ def transfer_to_pcc_dir(parsed_dir, txt_dir, out_dir):
     if not os.path.exists(out_dir):
         os.mkdir(out_dir)
 
-    #for i, fn in enumerate(fns):
-        #if i % 5000 == 0:
-        #    print(out_dir.split("/")[-1], ": ", i)
     for fn in tqdm(fns):
         parsed_path = os.path.join(parsed_dir, fn)
         txt_path = os.path.join(txt_dir, fn+".txt")
@@ -399,96 +396,3 @@ def remove_incomplete(tiger_dir, txt_dir):
 #                  "/data/europarl/common/txt/de") 
 
 
-def replace_leaves(tree, sent):
-    """
-    Recursively replace special symbols introduced by Berkeley parser.
-
-    Parameters
-    ----------
-    tree : nltk.tree.Tree
-        Parse tree output by Berkeley neural parser.
-    sent : [str]
-        Corresponding sentence with correct symbols,
-        word-tokenized.
-
-    Return
-    ------
-    res_tree : nltk.tree.Tree or str
-        Tree with correct symbols.
-        Is str when it is a leaf.
-    remaining_sent : [str]
-        Words not used for replacement this far
-    """
-
-    if isinstance(tree, str):
-        res_tree = sent[0]
-        remaining_sent = sent[1:]
-    else:
-        label = tree.label()
-        new_children = []
-        remaining_sent = sent
-        for child in tree:
-            child, reamining_sent = replace_leaves(child, remaining_sent)
-            new_children.append(child)
-        res_tree = Tree(label, new_children)
-
-    return res_tree, remaining_sent
-
-
-def berk2parsermap(berkeley_dir, txt_dir, parsermap_path):
-    """
-    Save berkeley parse trees as dict.
-
-    Create a dictionary that contains the parse tree for
-    each sentence and save it as pickle.
-
-    Parameters
-    ----------
-    berkeley_dir : str
-        Path to directory containing parsed files.
-    txt_dir : str
-        Directory containing tokenized text files.
-    parsermap_path : str
-        Path to save result dictionary to.
-    """
-
-    parsermap = dict()
-    for fn in tqdm(os.listdir(berkeley_dir)):
-        txt_fn = fn.split(".")[0] + ".txt"
-        txt_path = os.path.join(txt_dir, txt_fn)
-        with open(txt_path) as txt_file:
-            lines = txt_file.readlines()
-            sents = [line.split() for line in lines]
-
-        berk_path = os.path.join(berkeley_dir, fn)
-        with open(berk_path) as berkeley_file:
-            cont = berkeley_file.read()
-            tree_strs = cont.split("\n(")
-            tree_strs_par = ["(" + tree_str for tree_str in tree_strs[1:]]
-            tree_strs = [tree_strs[0]] + tree_strs_par
-            #trees = [Tree.fromstring(tree_str) for tree_str in tree_strs]
-            trees = []
-            for tree_str in tree_strs:
-                try:
-                    tree = Tree.fromstring(tree_str)
-                    trees.append(tree)
-                except Exception as e:
-                    tree = None
-            for tree, sent in zip(trees, sents):
-                if tree is None:
-                    continue
-                tree, _ = replace_leaves(tree, sent)
-                sent = " ".join(sent)
-                ptree = ParentedTree.convert(tree)
-                parsermap[sent] = ptree
-
-    with open(parsermap_path, "wb") as parsermap_file:
-        pickle.dump(parsermap, parsermap_file)
-        parsermap[sent] = tree
-        with open(parsermap_path, "wb") as parsermap_file:
-            pickle.dump(parsermap, parsermap_file)
-
-
-#berk2parsermap("/data/europarl/common/syntax/de/berkeley",
-#               "/data/europarl/common/txt/de",
-#               "/data/europarl/common/syntax/de/parsermap_berkeley.pickle")

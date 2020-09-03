@@ -118,7 +118,7 @@ def analyze_dir(to_analyze, txt_dir, res_path):
             res_file.write("relations per word: \n")
 
         res_file.write("\n#### Senses ####\n")
-        for sense in sense_counts:
+        for sense in sorted(sense_counts.keys()):
             if num_relations > 0:
                 frac = float(sense_counts[sense]) / float(num_relations)
                 res_file.write(sense + ": " + str(frac) + "\n")
@@ -173,25 +173,25 @@ def analyze_dir(to_analyze, txt_dir, res_path):
                 frac_empt_in_empt_docs + "\n")
 
 
-analyze_dir("/data/europarl/common/transferred/from_en",
-            "/data/europarl/common/txt/de",
-            "/data/europarl/common/analysis/corpora/from_en.txt")
-analyze_dir("/data/europarl/common/transferred/from_cs",
-            "/data/europarl/common/txt/de",
-            "/data/europarl/common/analysis/corpora/from_cs.txt")
-analyze_dir("/data/europarl/common/transferred/from_fr",
-            "/data/europarl/common/txt/de",
-            "/data/europarl/common/analysis/corpora/from_en.txt")
-analyze_dir("/data/europarl/common/parsed/en_cs",
+#analyze_dir("/data/europarl/common/transferred/from_en",
+#            "/data/europarl/common/txt/de",
+#            "/data/europarl/common/analysis/corpora/from_en.txt")
+#analyze_dir("/data/europarl/common/transferred/from_cs",
+#            "/data/europarl/common/txt/de",
+#            "/data/europarl/common/analysis/corpora/from_cs.txt")
+#analyze_dir("/data/europarl/common/transferred/from_fr",
+#            "/data/europarl/common/txt/de",
+#            "/data/europarl/common/analysis/corpora/from_fr.txt")
+analyze_dir("/data/europarl/common/transferred/en_cs",
             "/data/europarl/common/txt/de",
             "/data/europarl/common/analysis/corpora/en_cs.txt")
-analyze_dir("/data/europarl/common/parsed/en_fr",
+analyze_dir("/data/europarl/common/transferred/en_fr",
             "/data/europarl/common/txt/de",
             "/data/europarl/common/analysis/corpora/en_fr.txt")
-analyze_dir("/data/europarl/common/parsed/cs_fr",
+analyze_dir("/data/europarl/common/transferred/cs_fr",
             "/data/europarl/common/txt/de",
             "/data/europarl/common/analysis/corpora/cs_fr.txt")
-analyze_dir("/data/europarl/common/parsed/cs_fr_en",
+analyze_dir("/data/europarl/common/transferred/cs_fr_en",
             "/data/europarl/common/txt/de",
             "/data/europarl/common/analysis/corpora/cs_fr_en.txt")
 
@@ -225,7 +225,7 @@ def analyze_dir_pcc(to_analyze, txt_dir, res_path):
     rels_doc_with_empt = 0
 
     for fn in tqdm(os.listdir(to_analyze)):
-        txt_path = os.path.join(txt_dir, fn.split(".")[0] + ".txt")
+        txt_path = os.path.join(txt_dir, fn.split(".")[0] + ".tok")
         with open(txt_path) as txt_file:
             lines = txt_file.readlines()
             sents = [line.split() for line in lines]
@@ -246,14 +246,20 @@ def analyze_dir_pcc(to_analyze, txt_dir, res_path):
         for relation in relations:
             num_relations += 1
 
-            sense = relation.attrib["pdtb3_sense"]
+            if "pdtb3_sense" in relation.attrib:
+                sense = relation.attrib["pdtb3_sense"]
+            else:
+                sense = "None"
             if sense in sense_counts:
                 sense_counts[sense] += 1
             else:
                 sense_counts[sense] = 1
 
-            ct = relation.find("connective_tokens")
-            c_inds = set([t.attrib["id"] for t in ct])
+            if relation.attrib["type"] == "explicit":
+                ct = relation.find("connective_tokens")
+                c_inds = set([t.attrib["id"] for t in ct])
+            else:
+                c_inds = set()
             it = relation.find("int_arg_tokens")
             i_inds = set([t.attrib["id"] for t in it])
             et = relation.find("ext_arg_tokens")
@@ -366,9 +372,9 @@ def analyze_dir_pcc(to_analyze, txt_dir, res_path):
                 frac_empt_in_empt_docs + "\n")
 
 
-analyze_dir("/data/PotsdamCommentaryCorpus/connectives",
-            "/data/PotsdamCommentaryCorpus/tokenized",
-            "/data/europarl/common/analysis/corpora/pcc.txt")
+#analyze_dir_pcc("/data/PotsdamCommentaryCorpus/connectives",
+#                "/data/PotsdamCommentaryCorpus/tokenized",
+#                "/data/europarl/common/analysis/corpora/pcc.txt")
 
 
 def analyze_transfer(orig_dir, trans_dir, out_path):
