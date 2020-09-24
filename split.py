@@ -31,7 +31,7 @@ def find_common(dirs):
     return common_fns
 
 
-def split(dirs, split_fn, split_fracs=[0.8,0.1,0.1]):
+def split(dirs, split_fn, split_fracs=[0.8,0.1,0.1], num_files=None):
     """
     For a list of directories, find the common files
     and split them into train/dev/test.
@@ -46,11 +46,15 @@ def split(dirs, split_fn, split_fracs=[0.8,0.1,0.1]):
         filenames for train/dev/test are saved.
     split_fracs : [float]
         List of fractions to use for train/dev/test split.
+    num_files : int or None
+        Number of files to use. None for all files.
     """
 
     common_fns = find_common(dirs)
 
     random.shuffle(common_fns)
+    if not num_files is None:
+        common_fns = common_fns[:num_files]
     
     train_cut = int(split_fracs[0] * len(common_fns))
     train_fns = common_fns[:train_cut]
@@ -86,9 +90,10 @@ dirs = ["/data/europarl/common/transferred/from_cs/",
         "/data/europarl/common/txt/de_shortened",
         "/data/europarl/common/syntax/de/tiger"]
 
-#split(dirs, 
-#      "/data/europarl/common/split/split_no_dev.txt", 
-#      split_fracs=[0.9,0,0.1])
+split(dirs, 
+      "/data/europarl/common/split/split_8k.txt", 
+      split_fracs=[0.9,0,0.1],
+      num_files=8000)
 
 
 def distribute_split(split_fn, dir_to_split, out_dir, file_ending):
@@ -137,40 +142,40 @@ def distribute_split(split_fn, dir_to_split, out_dir, file_ending):
             cp_path = os.path.join(cp_dir, fn+file_ending)
             copyfile(orig_path, cp_path)
 
-#distribute_split("/data/europarl/common/split/split_no_dev.txt",
-#                 "/data/europarl/common/pcc_labels/from_en/",
-#                 "/data/europarl/common/split/en_pcc/",
-#                 ".xml")
-#distribute_split("/data/europarl/common/split/split_no_dev.txt",
-#                 "/data/europarl/common/pcc_labels/from_cs/",
-#                 "/data/europarl/common/split/cs_pcc/",
-#                 ".xml")
-#distribute_split("/data/europarl/common/split/split_no_dev.txt",
-#                 "/data/europarl/common/pcc_labels/from_fr/",
-#                 "/data/europarl/common/split/fr_pcc/",
-#                 ".xml")
-#distribute_split("/data/europarl/common/split/split_no_dev.txt",
-#                 "/data/europarl/common/pcc_labels/cs_fr/",
-#                 "/data/europarl/common/split/cs_fr_pcc/",
-#                 ".xml")
-#distribute_split("/data/europarl/common/split/split_no_dev.txt",
-#                 "/data/europarl/common/pcc_labels/en_cs/",
-#                 "/data/europarl/common/split/en_cs_pcc/",
-#                 ".xml")
-#distribute_split("/data/europarl/common/split/split_no_dev.txt",
-#                 "/data/europarl/common/pcc_labels/en_fr/",
-#                 "/data/europarl/common/split/en_fr_pcc/",
-#                 ".xml")
-#distribute_split("/data/europarl/common/split/split_no_dev.txt",
-#                 "/data/europarl/common/pcc_labels/cs_fr_en/",
-#                 "/data/europarl/common/split/cs_fr_en_pcc/",
-#                 ".xml")
-#
-#distribute_split("/data/europarl/common/split/split_no_dev.txt",
-#                 "/data/europarl/common/txt/de/",
-#                 "/data/europarl/common/split/de_txt/",
-#                 ".txt")
-#distribute_split("/data/europarl/common/split/split_no_dev.txt",
-#                 "/data/europarl/common/syntax/de/tiger/",
-#                 "/data/europarl/common/split/de_syntax/",
-#                 ".xml")
+distribute_split("/data/europarl/common/split/split_8k.txt",
+                 "/data/europarl/common/pcc_labels/from_en/",
+                 "/data/europarl/common/split_8k/en_pcc/",
+                 ".xml")
+distribute_split("/data/europarl/common/split/split_8k.txt",
+                 "/data/europarl/common/pcc_labels/from_cs/",
+                 "/data/europarl/common/split_8k/cs_pcc/",
+                 ".xml")
+distribute_split("/data/europarl/common/split/split_8k.txt",
+                 "/data/europarl/common/pcc_labels/from_fr/",
+                 "/data/europarl/common/split_8k/fr_pcc/",
+                 ".xml")
+distribute_split("/data/europarl/common/split/split_8k.txt",
+                 "/data/europarl/common/pcc_labels/cs_fr/",
+                 "/data/europarl/common/split_8k/cs_fr_pcc/",
+                 ".xml")
+distribute_split("/data/europarl/common/split/split_8k.txt",
+                 "/data/europarl/common/pcc_labels/en_cs/",
+                 "/data/europarl/common/split_8k/en_cs_pcc/",
+                 ".xml")
+distribute_split("/data/europarl/common/split/split_8k.txt",
+                 "/data/europarl/common/pcc_labels/en_fr/",
+                 "/data/europarl/common/split_8k/en_fr_pcc/",
+                 ".xml")
+distribute_split("/data/europarl/common/split/split_8k.txt",
+                 "/data/europarl/common/pcc_labels/cs_fr_en/",
+                 "/data/europarl/common/split_8k/cs_fr_en_pcc/",
+                 ".xml")
+
+distribute_split("/data/europarl/common/split/split_8k.txt",
+                 "/data/europarl/common/txt/de/",
+                 "/data/europarl/common/split_8k/de_txt/",
+                 ".txt")
+distribute_split("/data/europarl/common/split/split_8k.txt",
+                 "/data/europarl/common/syntax/de/tiger/",
+                 "/data/europarl/common/split_8k/de_syntax/",
+                 ".xml")

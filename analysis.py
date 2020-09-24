@@ -3,6 +3,7 @@ from lxml import etree
 from tqdm import tqdm
 import collections as col
 import json
+import random
 
 
 def analyze_dir(to_analyze, txt_dir, res_path):
@@ -77,17 +78,17 @@ def analyze_dir(to_analyze, txt_dir, res_path):
 
             if relation["Type"] == "Implicit":
                 num_implicit += 1
-                if i_inds in sents and e_inds in sents:
+                if i_inds in sent_inds and e_inds in sent_inds:
                     both_sents += 1
-                elif set_add(i_inds, c_inds) in sents and e_inds in sents:
+                elif set_add(i_inds, c_inds) in sent_inds and e_inds in sent_inds:
                     both_sents += 1
-                elif i_inds in sents and set_add(e_inds, c_inds) in sents:
+                elif i_inds in sent_inds and set_add(e_inds, c_inds) in sent_inds:
                     both_sents += 1
                 else:
                     # one of the arguments could still be a sentence
-                    if i_inds in sents or set_add(i_inds, c_inds) in sents:
+                    if i_inds in sent_inds or set_add(i_inds, c_inds) in sent_inds:
                         one_sent += 1
-                    elif e_inds in sents or set_add(e_inds, c_inds) in sents:
+                    elif e_inds in sent_inds or set_add(e_inds, c_inds) in sent_inds:
                         one_sent += 1
             elif relation["Type"] == "Explicit":
                 num_explicit += 1
@@ -182,18 +183,18 @@ def analyze_dir(to_analyze, txt_dir, res_path):
 #analyze_dir("/data/europarl/common/transferred/from_fr",
 #            "/data/europarl/common/txt/de",
 #            "/data/europarl/common/analysis/corpora/from_fr.txt")
-analyze_dir("/data/europarl/common/transferred/en_cs",
-            "/data/europarl/common/txt/de",
-            "/data/europarl/common/analysis/corpora/en_cs.txt")
-analyze_dir("/data/europarl/common/transferred/en_fr",
-            "/data/europarl/common/txt/de",
-            "/data/europarl/common/analysis/corpora/en_fr.txt")
-analyze_dir("/data/europarl/common/transferred/cs_fr",
-            "/data/europarl/common/txt/de",
-            "/data/europarl/common/analysis/corpora/cs_fr.txt")
-analyze_dir("/data/europarl/common/transferred/cs_fr_en",
-            "/data/europarl/common/txt/de",
-            "/data/europarl/common/analysis/corpora/cs_fr_en.txt")
+#analyze_dir("/data/europarl/common/transferred/en_cs",
+#            "/data/europarl/common/txt/de",
+#            "/data/europarl/common/analysis/corpora/en_cs.txt")
+#analyze_dir("/data/europarl/common/transferred/en_fr",
+#            "/data/europarl/common/txt/de",
+#            "/data/europarl/common/analysis/corpora/en_fr.txt")
+#analyze_dir("/data/europarl/common/transferred/cs_fr",
+#            "/data/europarl/common/txt/de",
+#            "/data/europarl/common/analysis/corpora/cs_fr.txt")
+#analyze_dir("/data/europarl/common/transferred/cs_fr_en",
+#            "/data/europarl/common/txt/de",
+#            "/data/europarl/common/analysis/corpora/cs_fr_en.txt")
 
 
 def analyze_dir_pcc(to_analyze, txt_dir, res_path):
@@ -250,6 +251,9 @@ def analyze_dir_pcc(to_analyze, txt_dir, res_path):
                 sense = relation.attrib["pdtb3_sense"]
             else:
                 sense = "None"
+            sense_levels = sense.split(".")
+            if len(sense_levels) > 2 and sense_levels[2].startswith("Arg"):
+                sense = sense_levels[0] + "." + sense_levels[1]
             if sense in sense_counts:
                 sense_counts[sense] += 1
             else:
@@ -276,17 +280,17 @@ def analyze_dir_pcc(to_analyze, txt_dir, res_path):
 
             if relation.attrib["type"] == "implicit":
                 num_implicit += 1
-                if i_inds in sents and e_inds in sents:
+                if i_inds in sent_inds and e_inds in sent_inds:
                     both_sents += 1
-                elif set_add(i_inds, c_inds) in sents and e_inds in sents:
+                elif set_add(i_inds, c_inds) in sent_inds and e_inds in sent_inds:
                     both_sents += 1
-                elif i_inds in sents and set_add(e_inds, c_inds) in sents:
+                elif i_inds in sent_inds and set_add(e_inds, c_inds) in sent_inds:
                     both_sents += 1
                 else:
                     # one of the arguments could still be a sentence
-                    if i_inds in sents or set_add(i_inds, c_inds) in sents:
+                    if i_inds in sent_inds or set_add(i_inds, c_inds) in sent_inds:
                         one_sent += 1
-                    elif e_inds in sents or set_add(e_inds, c_inds) in sents:
+                    elif e_inds in sent_inds or set_add(e_inds, c_inds) in sent_inds:
                         one_sent += 1
             elif relation.attrib["type"] == "explicit":
                 num_explicit += 1
@@ -317,7 +321,7 @@ def analyze_dir_pcc(to_analyze, txt_dir, res_path):
             res_file.write("relations per word: \n")
 
         res_file.write("\n#### Senses ####\n")
-        for sense in sense_counts:
+        for sense in sorted(sense_counts.keys()):
             if num_relations > 0:
                 frac = float(sense_counts[sense]) / float(num_relations)
                 res_file.write(sense + ": " + str(frac) + "\n")
@@ -455,42 +459,64 @@ def analyze_transfer(orig_dir, trans_dir, out_path):
             else:
                 i2e[sense] += 1
     
+    total_all = sum(e2e.values()) + sum(e2i.values()) + sum(i2i.values()) + sum(i2e.values())
+
     outs = "Transfer relations analysis:\n"
     outs += "original files: " + orig_path + "\n"
     outs += "transferred files: " + trans_path + "\n\n\n"
     outs += "Explicit to Explicit: \n"
-    outs += "total: " + str(sum(e2e.values())) + "\n"
-    for sense in e2e:
-        outs += sense + ": " + str(e2e[sense]) + "\n"
+    total = sum(e2e.values())
+    frac = total / total_all
+    outs += "total: {:.4f} \t {:.4f} \n".format(total, frac)
+    for sense in sorted(e2e.keys()):
+        curr_num = e2e[sense]
+        frac_e2e = curr_num / total
+        frac_all = curr_num / total_all
+        outs += sense + ":\t\t\t{0}\t{1:.4f}\t{2:.4f} \n".format(curr_num, frac_e2e, frac_all)
     outs += "\n\n"
 
     outs += "Explicit to Implicit: \n"
-    outs += "total: " + str(sum(e2i.values())) + "\n"
-    for sense in e2i:
-        outs += sense + ": " + str(e2i[sense]) + "\n"
+    total = sum(e2i.values())
+    frac = total / total_all
+    outs += "total: {:.4f} \t {:.4f} \n".format(total, frac)
+    for sense in sorted(e2i.keys()):
+        curr_num = e2i[sense]
+        frac_e2i = curr_num / total
+        frac_all = curr_num / total_all
+        outs += sense + ":\t\t\t{0}\t{1:.4f}\t{2:.4f} \n".format(curr_num, frac_e2i, frac_all)
     outs += "\n\n"
 
     outs += "Implicit to Implicit: \n"
-    outs += "total: " + str(sum(i2i.values())) + "\n"
-    for sense in i2i:
-        outs += sense + ": " + str(i2i[sense]) + "\n"
+    total = sum(i2i.values())
+    frac = total / total_all
+    outs += "total: {:.4f} \t {:.4f} \n".format(total, frac)
+    for sense in sorted(i2i.keys()):
+        curr_num = i2i[sense]
+        frac_i2i = curr_num / total
+        frac_all = curr_num / total_all
+        outs += sense + ":\t\t\t{0}\t{1:.4f}\t{2:.4f} \n".format(curr_num, frac_i2i, frac_all)
     outs += "\n\n"
 
     outs += "Implicit to Explicit: \n"
-    outs += "total: " + str(sum(i2e.values())) + "\n"
-    for sense in i2e:
-        outs += sense + ": " + str(i2e[sense]) + "\n"
+    total = sum(i2e.values())
+    frac = total / total_all
+    outs += "total: {:.4f} \t {:.4f} \n".format(total, frac)
+    for sense in sorted(i2e.keys()):
+        curr_num = i2e[sense]
+        frac_i2e = curr_num / total
+        frac_all = curr_num / total_all
+        outs += sense + ":\t\t\t{0}\t{1:.4f}\t{2:.4f} \n".format(curr_num, frac_i2e, frac_all)
     outs += "\n\n"
 
     outs += "Implicit relations removed because an argument was empty:\n"
     outs += "total: " + str(sum(losti.values())) + "\n"
-    for sense in losti:
+    for sense in sorted(losti.keys()):
         outs += sense + ": " + str(losti[sense]) + "\n"
     outs += "\n\n"
 
     outs += "Explicit relations removed because an argument was empty:\n"
     outs += "total: " + str(sum(loste.values())) + "\n"
-    for sense in loste:
+    for sense in sorted(loste.keys()):
         outs += sense + ": " + str(loste[sense]) + "\n"
     outs += "\n\n"
 
@@ -507,3 +533,34 @@ def analyze_transfer(orig_dir, trans_dir, out_path):
 #analyze_transfer("/data/europarl/common/parsed/cs",
 #                 "/data/europarl/common/transferred/from_cs",
 #                 "/data/europarl/common/analysis/transfer/cs")
+
+
+def choose_manual_files(split_fn, chosen_fn, n=100):
+    """
+    Randomly choose files for manual evaluation.
+
+    Parameters
+    ----------
+    split_fn : str
+        Path to file containing filenames in train/dev/test split.
+    chosen_fn : str
+        Path to save chosen filenames to.
+    n : int
+        Number of files to choose.
+    """
+
+    fns = []
+    with open(split_fn) as split_file:
+        for line in split_file:
+            if len(line) < 2 or line[-2] == ":":
+                continue
+            fns.append(line.strip())
+
+    chosen_fns = random.sample(fns, n)
+
+    with open(chosen_fn, "w") as chosen_file:
+        for fn in chosen_fns:
+            chosen_file.write(fn + "\n")
+
+choose_manual_files("/data/europarl/common/split/split_no_dev.txt",
+                    "/data/europarl/common/split/manual_fns.txt")
