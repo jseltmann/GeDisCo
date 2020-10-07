@@ -280,7 +280,6 @@ def transfer_to_pcc_dir(parsed_dir, txt_dir, out_dir):
 
         transfer_to_pcc(parsed_path, txt_path, out_path)
 
-
 #print("PCC Cs")
 #transfer_to_pcc_dir("/data/europarl/common/transferred/from_cs",
 #                      "/data/europarl/common/txt/de",
@@ -295,19 +294,19 @@ def transfer_to_pcc_dir(parsed_dir, txt_dir, out_dir):
 #                      "/data/europarl/common/pcc_labels/from_fr")
 #
 #print("PCC Cs_Fr")
-#transfer_to_pcc_dir("/data/europarl/common/parsed/cs_fr",
+#transfer_to_pcc_dir("/data/europarl/common/transferred/cs_fr",
 #                      "/data/europarl/common/txt/de",
 #                      "/data/europarl/common/pcc_labels/cs_fr")
 #print("PCC En_Cs")
-#transfer_to_pcc_dir("/data/europarl/common/parsed/en_cs",
+#transfer_to_pcc_dir("/data/europarl/common/transferred/en_cs",
 #                      "/data/europarl/common/txt/de",
 #                      "/data/europarl/common/pcc_labels/en_cs")
 #print("PCC En_Fr")
-#transfer_to_pcc_dir("/data/europarl/common/parsed/en_fr",
+#transfer_to_pcc_dir("/data/europarl/common/transferred/en_fr",
 #                      "/data/europarl/common/txt/de",
 #                      "/data/europarl/common/pcc_labels/en_fr")
 #print("PCC Cs_Fr_En")
-#transfer_to_pcc_dir("/data/europarl/common/parsed/cs_fr_en",
+#transfer_to_pcc_dir("/data/europarl/common/transferred/cs_fr_en",
 #                      "/data/europarl/common/txt/de",
 #                      "/data/europarl/common/pcc_labels/cs_fr_en")
 
@@ -396,3 +395,163 @@ def remove_incomplete(tiger_dir, txt_dir):
 #                  "/data/europarl/common/txt/de") 
 
 
+def remove_empty_lines(pcc_tok_dir, pcc_tok_new):
+    """
+    Remove empty lines from tokenized PCC files.
+    This serves to be able to create character counts
+    in the PCC-to-CoNLL transformation.
+
+    Parameters
+    ----------
+    pcc_tok_dir : str
+        Directory containing tokenized PCC files.
+    pcc_tok_new : str
+        Directory to write the resulting files to.
+    """
+    for fn in os.listdir(pcc_tok_dir):
+        tok_path = os.path.join(pcc_tok_dir, fn)
+        new_path = os.path.join(pcc_tok_new, fn)
+        with open(tok_path) as tok_file:
+            lines = tok_file.readlines()
+        no_empty = [l for l in lines if l.strip() != ""]
+        with open(new_path, "w") as new_file:
+            for line in no_empty:
+                new_file.write(line)
+
+#remove_empty_lines("/data/PotsdamCommentaryCorpus/tokenized", "/data/PotsdamCommentaryCorpus/tokenized_no_emp_lines")
+
+
+def pcc_to_conll(pcc_path, conll_path):
+    """
+    Transfer PCC connectives file to conll 2015
+
+    Parameters
+    ----------
+    pcc_path : str
+        Path to parsed PCC connectives.
+    conll_path : str
+        Path to save resulting json format to.
+    """
+
+    parsed = etree.parse(pcc_path)
+    root = parsed.getroot()
+    tokens = root.findall("tokens")[0].findall("token")
+    tok_info = dict()
+    char_count = 0
+    for tok in tokens:
+        ind = int(tok.attrib["id"])
+        word = tok.text
+        start = char_count
+        end = char_count + len(word) + 1
+        tok_info[ind] = (start, end)
+        char_count = end + 1
+
+    relations = root.findall("relations")[0].findall("relation")
+    rel_dicts = []
+    for relation in relations:
+        rel = dict()
+        if "pdtb3_sense" in relation.attrib:
+            rel["Sense"] = [relation.attrib["pdtb3_sense"]]
+        else:
+            rel["Sense"] = [relation.attrib["type"]] # EntRel or NoRel
+        if relation.attrib["type"] == "explicit":
+            rel["Type"] = "Explicit"
+        elif relation.attrib["type"] == "implicit":
+            rel["Type"] = "Implicit"
+        else:
+            rel["Type"] = relation.attrib["type"]
+        rel["ID"] = relation.attrib["relation_id"]
+
+        intarg_toks = relation.findall("int_arg_tokens")[0].findall("int_arg_token")
+        intarg_toks = sorted([(int(t.attrib["id"]), t.attrib["token"]) for t in intarg_toks], key=lambda x:x[0])
+        extarg_toks = relation.findall("int_arg_tokens")[0].findall("ext_arg_token")
+        extarg_toks = sorted([(int(t.attrib["id"]), t.attrib["token"]) for t in extarg_toks], key=lambda x:x[0])
+        conn_toks = relation.findall("connective_tokens")[0].findall("connective_token")
+        conn_toks = sorted([(int(t.attrib["id"]), t.attrib["token"]) for t in conn_toks], key=lambda x:x[0])
+
+        if len(intarg_toks) > 0 and len(extarg_toks) > 0:
+            if min([i for i,_ in intarg_toks]) < min([i for i,_ in extarg_toks]):
+                arg1_toks = intarg_toks
+                arg2_toks = extarg_toks
+            else:
+                arg1_toks = extarg_toks
+                arg2_toks = intarg_toks
+        else:
+                arg1_toks = intarg_toks
+                arg2_toks = extarg_toks
+
+        rel["Arg1"] = dict()
+        rel["Arg1"]["TokenList"] = []
+        rel["Arg1"]["RawText"] = ""
+        for i, (num, tok) in enumerate(arg1_toks):
+            start, end = tok_info[num]
+            tok_ids = [start, end, num, 0, i]
+            # putting 0 because sentences don't matter to evaluation
+            rel["Arg1"]["TokenList"].append(tok_ids)
+            rel["Arg1"]["RawText"] += tok + " "
+        if len(rel["Arg1"]["TokenList"]) > 0:
+            rel["Arg1"]["CharacterSpanList"] = [[rel["Arg1"]["TokenList"][0][0],
+                                                 rel["Arg1"]["TokenList"][-1][1]]]
+        else:
+            rel["Arg2"]["CharacterSpanList"] = []
+
+        rel["Arg2"] = dict()
+        rel["Arg2"]["TokenList"] = []
+        rel["Arg2"]["RawText"] = ""
+        for i, (num, tok) in enumerate(arg2_toks):
+            start, end = tok_info[num]
+            tok_ids = [start, end, num, 0, i]
+            # putting 0 because sentences don't matter to evaluation
+            rel["Arg2"]["TokenList"].append(tok_ids)
+            rel["Arg2"]["RawText"] += tok + " "
+        if len(rel["Arg2"]["TokenList"]) > 0:
+            rel["Arg2"]["CharacterSpanList"] = [[rel["Arg2"]["TokenList"][0][0],
+                                                 rel["Arg2"]["TokenList"][-1][1]]]
+        else:
+            rel["Arg2"]["CharacterSpanList"] = []
+
+        rel["Connective"] = dict()
+        rel["Connective"]["TokenList"] = []
+        rel["Connective"]["RawText"] = ""
+        for i, (num, tok) in enumerate(arg1_toks):
+            start, end = tok_info[num]
+            tok_ids = [start, end, num, 0, i]
+            # putting 0 because sentences don't matter to evaluation
+            rel["Connective"]["TokenList"].append(tok_ids)
+            rel["Connective"]["RawText"] += tok + " "
+        if len(rel["Connective"]["TokenList"]) > 0:
+            rel["Connective"]["CharacterSpanList"] = [[rel["Connective"]["TokenList"][0][0],
+                                                   rel["Connective"]["TokenList"][-1][1]]]
+        else:
+            rel["Arg2"]["CharacterSpanList"] = []
+        
+        rel_dicts.append(rel)
+
+    with open(conll_path, "w") as conll_file:
+        for rel in rel_dicts:
+            json.dump(rel, conll_file)
+            conll_file.write("\n")
+
+
+def pcc_to_conll_dir(pcc_dir, conll_dir):
+    """
+    Wrap pcc_to_conll over directories.
+
+    Parameters:
+    -----------
+    pcc_dir : str
+        Directory containing PCC connectives in xml format.
+    conll_dir : str
+        Directory to save connectives in CoNLL format.
+    """
+
+    if not os.path.exists(conll_dir):
+        os.makedirs(conll_dir)
+
+    for fn in tqdm(os.listdir(pcc_dir)):
+        pcc_path = os.path.join(pcc_dir, fn)
+        conll_path = os.path.join(conll_dir, fn)
+        pcc_to_conll(pcc_path, conll_path)
+
+pcc_to_conll_dir("/data/PotsdamCommentaryCorpus/connectives",
+                 "/data/PotsdamCommentaryCorpus/conll_connectives")
