@@ -421,111 +421,115 @@ def remove_empty_lines(pcc_tok_dir, pcc_tok_new):
 #remove_empty_lines("/data/PotsdamCommentaryCorpus/tokenized", "/data/PotsdamCommentaryCorpus/tokenized_no_emp_lines")
 
 
-def pcc_to_conll(pcc_path, conll_path):
+def pcc_to_conll(pcc_dir, conll_path):
     """
-    Transfer PCC connectives file to conll 2015
+    Transfer PCC connectives file to conll 2015 format.
 
     Parameters
     ----------
-    pcc_path : str
-        Path to parsed PCC connectives.
+    pcc_dir : str
+        Directory containing parsed PCC connectives.
     conll_path : str
         Path to save resulting json format to.
     """
 
-    parsed = etree.parse(pcc_path)
-    root = parsed.getroot()
-    tokens = root.findall("tokens")[0].findall("token")
-    tok_info = dict()
-    char_count = 0
-    for tok in tokens:
-        ind = int(tok.attrib["id"])
-        word = tok.text
-        start = char_count
-        end = char_count + len(word) + 1
-        tok_info[ind] = (start, end)
-        char_count = end + 1
-
-    relations = root.findall("relations")[0].findall("relation")
     rel_dicts = []
-    for relation in relations:
-        rel = dict()
-        if "pdtb3_sense" in relation.attrib:
-            rel["Sense"] = [relation.attrib["pdtb3_sense"]]
-        else:
-            rel["Sense"] = [relation.attrib["type"]] # EntRel or NoRel
-        if relation.attrib["type"] == "explicit":
-            rel["Type"] = "Explicit"
-        elif relation.attrib["type"] == "implicit":
-            rel["Type"] = "Implicit"
-        else:
-            rel["Type"] = relation.attrib["type"]
-        rel["ID"] = relation.attrib["relation_id"]
+    for fn in os.listdir(pcc_dir):
+        pcc_path = os.path.join(pcc_dir, fn)
 
-        intarg_toks = relation.findall("int_arg_tokens")[0].findall("int_arg_token")
-        intarg_toks = sorted([(int(t.attrib["id"]), t.attrib["token"]) for t in intarg_toks], key=lambda x:x[0])
-        extarg_toks = relation.findall("int_arg_tokens")[0].findall("ext_arg_token")
-        extarg_toks = sorted([(int(t.attrib["id"]), t.attrib["token"]) for t in extarg_toks], key=lambda x:x[0])
-        conn_toks = relation.findall("connective_tokens")[0].findall("connective_token")
-        conn_toks = sorted([(int(t.attrib["id"]), t.attrib["token"]) for t in conn_toks], key=lambda x:x[0])
+        parsed = etree.parse(pcc_path)
+        root = parsed.getroot()
+        tokens = root.findall("tokens")[0].findall("token")
+        tok_info = dict()
+        char_count = 0
+        for tok in tokens:
+            ind = int(tok.attrib["id"])
+            word = tok.text
+            start = char_count
+            end = char_count + len(word) + 1
+            tok_info[ind] = (start, end)
+            char_count = end + 1
 
-        if len(intarg_toks) > 0 and len(extarg_toks) > 0:
-            if min([i for i,_ in intarg_toks]) < min([i for i,_ in extarg_toks]):
-                arg1_toks = intarg_toks
-                arg2_toks = extarg_toks
+        relations = root.findall("relations")[0].findall("relation")
+        for relation in relations:
+            rel = dict()
+            if "pdtb3_sense" in relation.attrib:
+                rel["Sense"] = [relation.attrib["pdtb3_sense"]]
             else:
-                arg1_toks = extarg_toks
-                arg2_toks = intarg_toks
-        else:
-                arg1_toks = intarg_toks
-                arg2_toks = extarg_toks
+                rel["Sense"] = [relation.attrib["type"]] # EntRel or NoRel
+            if relation.attrib["type"] == "explicit":
+                rel["Type"] = "Explicit"
+            elif relation.attrib["type"] == "implicit":
+                rel["Type"] = "Implicit"
+            else:
+                rel["Type"] = relation.attrib["type"]
+            rel["ID"] = relation.attrib["relation_id"]
+            rel["DocID"] = pcc_path.split("/")[-1].split(".")[0] # filename without .xml
 
-        rel["Arg1"] = dict()
-        rel["Arg1"]["TokenList"] = []
-        rel["Arg1"]["RawText"] = ""
-        for i, (num, tok) in enumerate(arg1_toks):
-            start, end = tok_info[num]
-            tok_ids = [start, end, num, 0, i]
-            # putting 0 because sentences don't matter to evaluation
-            rel["Arg1"]["TokenList"].append(tok_ids)
-            rel["Arg1"]["RawText"] += tok + " "
-        if len(rel["Arg1"]["TokenList"]) > 0:
-            rel["Arg1"]["CharacterSpanList"] = [[rel["Arg1"]["TokenList"][0][0],
-                                                 rel["Arg1"]["TokenList"][-1][1]]]
-        else:
-            rel["Arg2"]["CharacterSpanList"] = []
+            intarg_toks = relation.findall("int_arg_tokens")[0].findall("int_arg_token")
+            intarg_toks = sorted([(int(t.attrib["id"]), t.attrib["token"]) for t in intarg_toks], key=lambda x:x[0])
+            extarg_toks = relation.findall("int_arg_tokens")[0].findall("ext_arg_token")
+            extarg_toks = sorted([(int(t.attrib["id"]), t.attrib["token"]) for t in extarg_toks], key=lambda x:x[0])
+            conn_toks = relation.findall("connective_tokens")[0].findall("connective_token")
+            conn_toks = sorted([(int(t.attrib["id"]), t.attrib["token"]) for t in conn_toks], key=lambda x:x[0])
 
-        rel["Arg2"] = dict()
-        rel["Arg2"]["TokenList"] = []
-        rel["Arg2"]["RawText"] = ""
-        for i, (num, tok) in enumerate(arg2_toks):
-            start, end = tok_info[num]
-            tok_ids = [start, end, num, 0, i]
-            # putting 0 because sentences don't matter to evaluation
-            rel["Arg2"]["TokenList"].append(tok_ids)
-            rel["Arg2"]["RawText"] += tok + " "
-        if len(rel["Arg2"]["TokenList"]) > 0:
-            rel["Arg2"]["CharacterSpanList"] = [[rel["Arg2"]["TokenList"][0][0],
-                                                 rel["Arg2"]["TokenList"][-1][1]]]
-        else:
-            rel["Arg2"]["CharacterSpanList"] = []
+            if len(intarg_toks) > 0 and len(extarg_toks) > 0:
+                if min([i for i,_ in intarg_toks]) < min([i for i,_ in extarg_toks]):
+                    arg1_toks = intarg_toks
+                    arg2_toks = extarg_toks
+                else:
+                    arg1_toks = extarg_toks
+                    arg2_toks = intarg_toks
+            else:
+                    arg1_toks = intarg_toks
+                    arg2_toks = extarg_toks
 
-        rel["Connective"] = dict()
-        rel["Connective"]["TokenList"] = []
-        rel["Connective"]["RawText"] = ""
-        for i, (num, tok) in enumerate(arg1_toks):
-            start, end = tok_info[num]
-            tok_ids = [start, end, num, 0, i]
-            # putting 0 because sentences don't matter to evaluation
-            rel["Connective"]["TokenList"].append(tok_ids)
-            rel["Connective"]["RawText"] += tok + " "
-        if len(rel["Connective"]["TokenList"]) > 0:
-            rel["Connective"]["CharacterSpanList"] = [[rel["Connective"]["TokenList"][0][0],
-                                                   rel["Connective"]["TokenList"][-1][1]]]
-        else:
-            rel["Arg2"]["CharacterSpanList"] = []
-        
-        rel_dicts.append(rel)
+            rel["Arg1"] = dict()
+            rel["Arg1"]["TokenList"] = []
+            rel["Arg1"]["RawText"] = ""
+            for i, (num, tok) in enumerate(arg1_toks):
+                start, end = tok_info[num]
+                tok_ids = [start, end, num, 0, i]
+                # putting 0 because sentences don't matter to evaluation
+                rel["Arg1"]["TokenList"].append(tok_ids)
+                rel["Arg1"]["RawText"] += tok + " "
+            if len(rel["Arg1"]["TokenList"]) > 0:
+                rel["Arg1"]["CharacterSpanList"] = [[rel["Arg1"]["TokenList"][0][0],
+                                                     rel["Arg1"]["TokenList"][-1][1]]]
+            else:
+                rel["Arg2"]["CharacterSpanList"] = []
+
+            rel["Arg2"] = dict()
+            rel["Arg2"]["TokenList"] = []
+            rel["Arg2"]["RawText"] = ""
+            for i, (num, tok) in enumerate(arg2_toks):
+                start, end = tok_info[num]
+                tok_ids = [start, end, num, 0, i]
+                # putting 0 because sentences don't matter to evaluation
+                rel["Arg2"]["TokenList"].append(tok_ids)
+                rel["Arg2"]["RawText"] += tok + " "
+            if len(rel["Arg2"]["TokenList"]) > 0:
+                rel["Arg2"]["CharacterSpanList"] = [[rel["Arg2"]["TokenList"][0][0],
+                                                     rel["Arg2"]["TokenList"][-1][1]]]
+            else:
+                rel["Arg2"]["CharacterSpanList"] = []
+
+            rel["Connective"] = dict()
+            rel["Connective"]["TokenList"] = []
+            rel["Connective"]["RawText"] = ""
+            for i, (num, tok) in enumerate(arg1_toks):
+                start, end = tok_info[num]
+                tok_ids = [start, end, num, 0, i]
+                # putting 0 because sentences don't matter to evaluation
+                rel["Connective"]["TokenList"].append(tok_ids)
+                rel["Connective"]["RawText"] += tok + " "
+            if len(rel["Connective"]["TokenList"]) > 0:
+                rel["Connective"]["CharacterSpanList"] = [[rel["Connective"]["TokenList"][0][0],
+                                                       rel["Connective"]["TokenList"][-1][1]]]
+            else:
+                rel["Arg2"]["CharacterSpanList"] = []
+
+            rel_dicts.append(rel)
 
     with open(conll_path, "w") as conll_file:
         for rel in rel_dicts:
@@ -533,25 +537,70 @@ def pcc_to_conll(pcc_path, conll_path):
             conll_file.write("\n")
 
 
-def pcc_to_conll_dir(pcc_dir, conll_dir):
+#def pcc_to_conll_dir(pcc_dir, conll_dir):
+#    """
+#    Wrap pcc_to_conll over directories.
+#
+#    Parameters:
+#    -----------
+#    pcc_dir : str
+#        Directory containing PCC connectives in xml format.
+#    conll_dir : str
+#        Directory to save connectives in CoNLL format.
+#    """
+#
+#    if not os.path.exists(conll_dir):
+#        os.makedirs(conll_dir)
+#
+#    for fn in tqdm(os.listdir(pcc_dir)):
+#        pcc_path = os.path.join(pcc_dir, fn)
+#        conll_path = os.path.join(conll_dir, fn)
+#        pcc_to_conll(pcc_path, conll_path)
+
+pcc_to_conll("/data/PotsdamCommentaryCorpus/connectives",
+             "/data/PotsdamCommentaryCorpus/conll_connectives.json")
+
+def GSDP_to_conll(gsdp_dir, conll_path):
     """
-    Wrap pcc_to_conll over directories.
+    Transform relations found by the GermanShallowDiscourseParser
+    to the format required by the CoNLL15 scorer.
 
-    Parameters:
-    -----------
-    pcc_dir : str
-        Directory containing PCC connectives in xml format.
-    conll_dir : str
-        Directory to save connectives in CoNLL format.
+    Parameters
+    ----------
+    gsdp_dir : str
+        Directory containing original relations.
+    conll_path : str
+        File to save the transformed relations to.
     """
 
-    if not os.path.exists(conll_dir):
-        os.makedirs(conll_dir)
+    new_rels = []
+    for fn in os.listdir(gsdp_dir):
+        gsdp_path = os.path.join(gsdp_dir, fn)
+        with open(gsdp_path) as gsdp_file:
+            rels = json.loads(gsdp_file.read())
 
-    for fn in tqdm(os.listdir(pcc_dir)):
-        pcc_path = os.path.join(pcc_dir, fn)
-        conll_path = os.path.join(conll_dir, fn)
-        pcc_to_conll(pcc_path, conll_path)
+        for rel in rels:
+            nrel = dict()
+            nrel["DocID"] = rel["DocID"].split(".")[0] # filename without .tok
+            nrel["Arg1"] = dict()
+            nrel["Arg1"]["TokenList"] = [quint[2] for quint in rel["Arg1"]["TokenList"]]
 
-pcc_to_conll_dir("/data/PotsdamCommentaryCorpus/connectives",
-                 "/data/PotsdamCommentaryCorpus/conll_connectives")
+            nrel["Arg2"] = dict()
+            nrel["Arg2"]["TokenList"] = [quint[2] for quint in rel["Arg2"]["TokenList"]]
+
+            nrel["Connective"] = dict()
+            nrel["Connective"]["TokenList"] = [quint[2] for quint in rel["Connective"]["TokenList"]]
+
+            nrel["Sense"] = [rel["Sense"]]
+            nrel["Type"] = rel["Type"]
+
+            new_rels.append(nrel)
+
+    with open(conll_path, "w") as conll_file:
+        for rel in new_rels:
+            json.dump(rel, conll_file)
+            conll_file.write("\n")
+
+
+GSDP_to_conll("/data/pcc_parsed/from_en",
+              "/data/pcc_parsed/from_en.json")
