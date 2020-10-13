@@ -421,7 +421,7 @@ def remove_empty_lines(pcc_tok_dir, pcc_tok_new):
 #remove_empty_lines("/data/PotsdamCommentaryCorpus/tokenized", "/data/PotsdamCommentaryCorpus/tokenized_no_emp_lines")
 
 
-def pcc_to_conll(pcc_dir, conll_path):
+def pcc_to_conll(pcc_dir, conll_path, rm_arg_num=False, level=3):
     """
     Transfer PCC connectives file to conll 2015 format.
 
@@ -431,10 +431,16 @@ def pcc_to_conll(pcc_dir, conll_path):
         Directory containing parsed PCC connectives.
     conll_path : str
         Path to save resulting json format to.
+    rm_arg_num : str
+        Remove "arg1-as"/"arg2-as" from senses.
+    level : int
+        Sense level to use.
     """
 
     rel_dicts = []
     for fn in os.listdir(pcc_dir):
+        #if not fn.startswith("maz-18945"):
+        #    continue
         pcc_path = os.path.join(pcc_dir, fn)
 
         parsed = etree.parse(pcc_path)
@@ -454,9 +460,14 @@ def pcc_to_conll(pcc_dir, conll_path):
         for relation in relations:
             rel = dict()
             if "pdtb3_sense" in relation.attrib:
-                rel["Sense"] = [relation.attrib["pdtb3_sense"]]
+                sense = relation.attrib["pdtb3_sense"]
             else:
-                rel["Sense"] = [relation.attrib["type"]] # EntRel or NoRel
+                sense = relation.attrib["type"] # EntRel or NoRel
+            levels = sense.split(".")[:level]
+            if rm_arg_num and levels[-1].startswith("Arg"):
+                levels = levels[:-1]
+            rel["Sense"] = [".".join(levels)]
+
             if relation.attrib["type"] == "explicit":
                 rel["Type"] = "Explicit"
             elif relation.attrib["type"] == "implicit":
@@ -468,7 +479,7 @@ def pcc_to_conll(pcc_dir, conll_path):
 
             intarg_toks = relation.findall("int_arg_tokens")[0].findall("int_arg_token")
             intarg_toks = sorted([(int(t.attrib["id"]), t.attrib["token"]) for t in intarg_toks], key=lambda x:x[0])
-            extarg_toks = relation.findall("int_arg_tokens")[0].findall("ext_arg_token")
+            extarg_toks = relation.findall("ext_arg_tokens")[0].findall("ext_arg_token")
             extarg_toks = sorted([(int(t.attrib["id"]), t.attrib["token"]) for t in extarg_toks], key=lambda x:x[0])
             conn_toks = relation.findall("connective_tokens")[0].findall("connective_token")
             conn_toks = sorted([(int(t.attrib["id"]), t.attrib["token"]) for t in conn_toks], key=lambda x:x[0])
@@ -497,7 +508,7 @@ def pcc_to_conll(pcc_dir, conll_path):
                 rel["Arg1"]["CharacterSpanList"] = [[rel["Arg1"]["TokenList"][0][0],
                                                      rel["Arg1"]["TokenList"][-1][1]]]
             else:
-                rel["Arg2"]["CharacterSpanList"] = []
+                rel["Arg1"]["CharacterSpanList"] = []
 
             rel["Arg2"] = dict()
             rel["Arg2"]["TokenList"] = []
@@ -537,30 +548,11 @@ def pcc_to_conll(pcc_dir, conll_path):
             conll_file.write("\n")
 
 
-#def pcc_to_conll_dir(pcc_dir, conll_dir):
-#    """
-#    Wrap pcc_to_conll over directories.
-#
-#    Parameters:
-#    -----------
-#    pcc_dir : str
-#        Directory containing PCC connectives in xml format.
-#    conll_dir : str
-#        Directory to save connectives in CoNLL format.
-#    """
-#
-#    if not os.path.exists(conll_dir):
-#        os.makedirs(conll_dir)
-#
-#    for fn in tqdm(os.listdir(pcc_dir)):
-#        pcc_path = os.path.join(pcc_dir, fn)
-#        conll_path = os.path.join(conll_dir, fn)
-#        pcc_to_conll(pcc_path, conll_path)
+#pcc_to_conll("/data/PotsdamCommentaryCorpus/connectives",
+#             "/data/PotsdamCommentaryCorpus/conll_connectives.json",
+#             rm_arg_num=False, level=3)
 
-pcc_to_conll("/data/PotsdamCommentaryCorpus/connectives",
-             "/data/PotsdamCommentaryCorpus/conll_connectives.json")
-
-def GSDP_to_conll(gsdp_dir, conll_path):
+def GSDP_to_conll(gsdp_dir, conll_path, level=3):
     """
     Transform relations found by the GermanShallowDiscourseParser
     to the format required by the CoNLL15 scorer.
@@ -571,10 +563,14 @@ def GSDP_to_conll(gsdp_dir, conll_path):
         Directory containing original relations.
     conll_path : str
         File to save the transformed relations to.
+    level : int
+        Sense level to use.
     """
 
     new_rels = []
     for fn in os.listdir(gsdp_dir):
+        #if not fn.startswith("maz-18945"):
+        #    continue
         gsdp_path = os.path.join(gsdp_dir, fn)
         with open(gsdp_path) as gsdp_file:
             rels = json.loads(gsdp_file.read())
@@ -591,7 +587,10 @@ def GSDP_to_conll(gsdp_dir, conll_path):
             nrel["Connective"] = dict()
             nrel["Connective"]["TokenList"] = [quint[2] for quint in rel["Connective"]["TokenList"]]
 
-            nrel["Sense"] = [rel["Sense"]]
+            sense = rel["Sense"]
+            levels = sense.split(".")[:level]
+            sense = ".".join(levels)
+            nrel["Sense"] = [sense]
             nrel["Type"] = rel["Type"]
 
             new_rels.append(nrel)
@@ -602,5 +601,6 @@ def GSDP_to_conll(gsdp_dir, conll_path):
             conll_file.write("\n")
 
 
-GSDP_to_conll("/data/pcc_parsed/from_en",
-              "/data/pcc_parsed/from_en.json")
+#GSDP_to_conll("/data/pcc_parsed/from_en",
+#              "/data/pcc_parsed/from_en.json",
+#              level=3)
