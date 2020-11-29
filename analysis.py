@@ -4,9 +4,37 @@ from tqdm import tqdm
 import collections as col
 import json
 import random
+import nltk
 
 
-def analyze_dir(to_analyze, txt_dir, res_path):
+
+def _single_sent(i_inds, e_inds, sent_inds):
+    """
+    Return true, if each argument of the relation
+    is contained in one sentence each.
+    Also count as true, if the last word of the argument is
+    in the next sentence.
+    """
+    for j, curr_sent in enumerate(sent_inds):
+        comb = [i for i in i_inds if i in curr_sent]
+        overhang = [i for i in i_inds if i not in curr_sent]
+        if len(comb) > 0 and len(overhang) < 2:
+            if j < len(sent_inds) - 1:
+                next_sent = sent_inds[j+1]
+                comb2 = [i for i in e_inds if i in next_sent]
+                overhang2 = [i for i in e_inds if i not in next_sent]
+                if len(comb2) > 0 and len(overhang) < 2:
+                    return True
+            if j > 0:
+                prev_sent = sent_inds[j-1]
+                comb2 = [i for i in e_inds if i in prev_sent]
+                overhang2 = [i for i in e_inds if i not in prev_sent]
+                if len(comb2) > 0 and len(overhang) < 2:
+                    return True
+    return False
+
+
+def analyze_dir(to_analyze, txt_dir, res_path, on_pcc=False):
     """
     Analyze dataset in one directory.
 
@@ -18,6 +46,8 @@ def analyze_dir(to_analyze, txt_dir, res_path):
         Path to directory containing text files.
     res_path : str
         Path to write results to.
+    on_pcc : bool
+        Whether the underlying text is from the PCC.
     """
 
     sense_counts = dict()
@@ -26,19 +56,28 @@ def analyze_dir(to_analyze, txt_dir, res_path):
     num_explicit = 0
     num_implicit = 0
     num_other_types = 0
-    one_sent = 0
-    both_sents = 0
     conn_in_arg = 0
     num_words = 0
     doc_empt_arg = 0
     rel_empt_arg = 0
     rels_doc_with_empt = 0
+    len_arg1, len_arg2 = 0, 0
+    num_between = 0
+    non_between = 0
+    non_between_explicit = 0
 
     for fn in tqdm(os.listdir(to_analyze)):
         txt_path = os.path.join(txt_dir, fn.split(".")[0] + ".txt")
         with open(txt_path) as txt_file:
             lines = txt_file.readlines()
-            sents = [line.split() for line in lines]
+            if on_pcc:
+                sents = []
+                for line in lines:
+                    curr_sents = nltk.sent_tokenize(line)
+                    curr_sents = [s.split() for s in curr_sents]
+                    sents += curr_sents
+            else:
+                sents = [line.split() for line in lines]
             sent_inds = []
             word_count = 0
             for sent in sents:
@@ -58,14 +97,27 @@ def analyze_dir(to_analyze, txt_dir, res_path):
             num_relations += 1
 
             sense = relation["Sense"][0]
+            sense_levels = sense.split(".")
+            if len(sense_levels) > 2 and sense_levels[2].startswith("Arg"):
+                sense = sense_levels[0] + "." + sense_levels[1]
             if sense in sense_counts:
                 sense_counts[sense] += 1
             else:
                 sense_counts[sense] = 1
 
-            c_inds = set(relation["Connective"]["TokenList"])
-            i_inds = set(relation["Arg1"]["TokenList"])
-            e_inds = set(relation["Arg2"]["TokenList"])
+            c_inds = relation["Connective"]["TokenList"]
+            if len(c_inds) > 0 and isinstance(c_inds[0], list):
+                # this is the case when we use the output of the GermanShallowDiscourseParser
+                c_inds = [l[2] for l in c_inds]
+            c_inds = set(c_inds)
+            i_inds = relation["Arg1"]["TokenList"]
+            if len(i_inds) > 0 and isinstance(i_inds[0], list):
+                i_inds = [l[2] for l in i_inds]
+            i_inds = set(i_inds)
+            e_inds = relation["Arg2"]["TokenList"]
+            if len(e_inds) > 0 and isinstance(e_inds[0], list):
+                e_inds = [l[2] for l in e_inds]
+            e_inds = set(e_inds)
 
             if len(e_inds) == 0 or len(i_inds) == 0:
                 rel_empt_arg += 1
@@ -78,19 +130,15 @@ def analyze_dir(to_analyze, txt_dir, res_path):
 
             if relation["Type"] == "Implicit":
                 num_implicit += 1
-                if i_inds in sent_inds and e_inds in sent_inds:
-                    both_sents += 1
-                elif set_add(i_inds, c_inds) in sent_inds and e_inds in sent_inds:
-                    both_sents += 1
-                elif i_inds in sent_inds and set_add(e_inds, c_inds) in sent_inds:
-                    both_sents += 1
+                if _single_sent(i_inds, e_inds, sent_inds):
+                    num_between += 1
                 else:
-                    # one of the arguments could still be a sentence
-                    if i_inds in sent_inds or set_add(i_inds, c_inds) in sent_inds:
-                        one_sent += 1
-                    elif e_inds in sent_inds or set_add(e_inds, c_inds) in sent_inds:
-                        one_sent += 1
+                    non_between += 1
+                    if "orig_type" in relation.keys() and relation["orig_type"] == "Explicit":
+                        non_between_explicit += 1
             elif relation["Type"] == "Explicit":
+                len_arg1 += len(i_inds)
+                len_arg2 += len(e_inds)
                 num_explicit += 1
                 arg_inds = set_add(i_inds, e_inds)
                 if c_inds.issubset(arg_inds):
@@ -110,13 +158,22 @@ def analyze_dir(to_analyze, txt_dir, res_path):
         if num_texts > 0:
             frac_docs = float(num_relations) / float(num_texts)
             res_file.write("relations per document: " + str(frac_docs) + "\n")
+            frac_words = float(num_words) / float(num_texts)
+            res_file.write("words per document: " + str(frac_words) + "\n")
         else:
             res_file.write("relations per document: \n")
+            res_file.write("words per document: \n")
         if num_words > 0:
             frac_words = float(num_relations) / float(num_words)
             res_file.write("relations per word: " + str(frac_words) + "\n")
+            frac_arg1 = float(len_arg1) / float(num_words)
+            res_file.write("frac of words in arg1: " + str(frac_arg1) + "\n")
+            frac_arg2 = float(len_arg2) / float(num_words)
+            res_file.write("frac of words in arg2: " + str(frac_arg2) + "\n")
         else:
             res_file.write("relations per word: \n")
+            res_file.write("frac of words in arg1: \n")
+            res_file.write("frac of words in arg2: \n")
 
         res_file.write("\n#### Senses ####\n")
         for sense in sorted(sense_counts.keys()):
@@ -126,6 +183,8 @@ def analyze_dir(to_analyze, txt_dir, res_path):
             else:
                 res_file.write(sense + ": \n")
         res_file.write("\n")
+        res_file.write("num implicit: " + str(num_implicit) + "\n")
+        res_file.write("num explicit: " + str(num_explicit) + "\n")
         if num_relations > 0:
             frac_impl = float(num_implicit) / float(num_relations)
             res_file.write("fraction implicit: " + str(frac_impl) + "\n")
@@ -135,19 +194,29 @@ def analyze_dir(to_analyze, txt_dir, res_path):
             res_file.write("fraction implicit: \n")
             res_file.write("fraction explicit: \n")
 
+        impl_per_doc = float(num_implicit) / float(num_texts)
+        res_file.write("implicit per document: " + str(impl_per_doc) + "\n")
+        impl_per_words = float(num_implicit) / float(num_words)
+        res_file.write("implicit per word: " + str(impl_per_words) + "\n")
+        expl_per_doc = float(num_explicit) / float(num_texts)
+        res_file.write("explicit per document: " + str(expl_per_doc) + "\n")
+        expl_per_words = float(num_explicit) / float(num_words)
+        res_file.write("explicit per word: " + str(expl_per_words) + "\n")
+
         res_file.write("\n#### Arguments ####\n")
         if num_implicit > 0:
-            frac_one_sent = float(one_sent) / float(num_implicit)
-            res_file.write("Fraction of implicit where one argument ")
-            res_file.write("is a sentence: " + str(frac_one_sent) + "\n")
-            frac_both_sent = float(both_sents) / float(num_implicit)
-            res_file.write("Fraction of implicit where both arguments ")
-            res_file.write("are sentences: " + str(frac_both_sent) + "\n")
+            frac_between = float(num_between) / float(num_implicit)
+            res_file.write("Fraction of implicit relations between two sentences: " + str(frac_between) + "\n")
+            frac_non_between = float(non_between) / float(num_implicit)
+            res_file.write("Fraction of implicit relations not between two sentences: " + str(frac_between) + "\n")
         else:
-            res_file.write("Fraction of implicit where one argument ")
-            res_file.write("is a sentence: \n")
-            res_file.write("Fraction of implicit where both arguments ")
-            res_file.write("are sentences: \n")
+            res_file.write("Fraction of implicit relations between two sentences: \n")
+            res_file.write("Fraction of implicit relations not between two sentences: \n")
+        if non_between > 0:
+            frac_from_ex = float(non_between_explicit) / float(non_between)
+            res_file.write("Fraction of relations not between two sents that were originally explicit: " + str(frac_from_ex) + "\n")
+        else:
+            res_file.write("Fraction of relations not between two sents that were originally explicit: \n")
         
         if num_explicit > 0:
             frac_conn_in_arg = float(conn_in_arg) / float(num_explicit)
@@ -174,29 +243,6 @@ def analyze_dir(to_analyze, txt_dir, res_path):
                 frac_empt_in_empt_docs + "\n")
 
 
-#analyze_dir("/data/europarl/common/transferred/from_en",
-#            "/data/europarl/common/txt/de",
-#            "/data/europarl/common/analysis/corpora/from_en.txt")
-#analyze_dir("/data/europarl/common/transferred/from_cs",
-#            "/data/europarl/common/txt/de",
-#            "/data/europarl/common/analysis/corpora/from_cs.txt")
-#analyze_dir("/data/europarl/common/transferred/from_fr",
-#            "/data/europarl/common/txt/de",
-#            "/data/europarl/common/analysis/corpora/from_fr.txt")
-#analyze_dir("/data/europarl/common/transferred/en_cs",
-#            "/data/europarl/common/txt/de",
-#            "/data/europarl/common/analysis/corpora/en_cs.txt")
-#analyze_dir("/data/europarl/common/transferred/en_fr",
-#            "/data/europarl/common/txt/de",
-#            "/data/europarl/common/analysis/corpora/en_fr.txt")
-#analyze_dir("/data/europarl/common/transferred/cs_fr",
-#            "/data/europarl/common/txt/de",
-#            "/data/europarl/common/analysis/corpora/cs_fr.txt")
-#analyze_dir("/data/europarl/common/transferred/cs_fr_en",
-#            "/data/europarl/common/txt/de",
-#            "/data/europarl/common/analysis/corpora/cs_fr_en.txt")
-
-
 def analyze_dir_pcc(to_analyze, txt_dir, res_path):
     """
     Analyze dataset in one directory, but work on PCC xml files.
@@ -217,13 +263,13 @@ def analyze_dir_pcc(to_analyze, txt_dir, res_path):
     num_explicit = 0
     num_implicit = 0
     num_other_types = 0
-    one_sent = 0
-    both_sents = 0
     conn_in_arg = 0
     num_words = 0
     doc_empt_arg = 0
     rel_empt_arg = 0
     rels_doc_with_empt = 0
+    len_arg1, len_arg2 = 0, 0
+    num_between = 0
 
     for fn in tqdm(os.listdir(to_analyze)):
         txt_path = os.path.join(txt_dir, fn.split(".")[0] + ".tok")
@@ -249,6 +295,8 @@ def analyze_dir_pcc(to_analyze, txt_dir, res_path):
 
             if "pdtb3_sense" in relation.attrib:
                 sense = relation.attrib["pdtb3_sense"]
+            elif relation.attrib["type"] == "EntRel":
+                sense = "EntRel"
             else:
                 sense = "None"
             sense_levels = sense.split(".")
@@ -278,14 +326,10 @@ def analyze_dir_pcc(to_analyze, txt_dir, res_path):
                     s1.add(el)
                 return s1
 
-            if relation.attrib["type"] == "implicit":
+            if relation.attrib["type"] == "implicit" or relation.attrib["type"] == "EntRel":
                 num_implicit += 1
-                if i_inds in sent_inds and e_inds in sent_inds:
-                    both_sents += 1
-                elif set_add(i_inds, c_inds) in sent_inds and e_inds in sent_inds:
-                    both_sents += 1
-                elif i_inds in sent_inds and set_add(e_inds, c_inds) in sent_inds:
-                    both_sents += 1
+                if _single_sent(i_inds, e_inds, sent_inds):
+                    num_between += 1
                 else:
                     # one of the arguments could still be a sentence
                     if i_inds in sent_inds or set_add(i_inds, c_inds) in sent_inds:
@@ -293,6 +337,8 @@ def analyze_dir_pcc(to_analyze, txt_dir, res_path):
                     elif e_inds in sent_inds or set_add(e_inds, c_inds) in sent_inds:
                         one_sent += 1
             elif relation.attrib["type"] == "explicit":
+                len_arg1 += len(i_inds)
+                len_arg2 += len(e_inds)
                 num_explicit += 1
                 arg_inds = set_add(i_inds, e_inds)
                 if c_inds.issubset(arg_inds):
@@ -312,13 +358,22 @@ def analyze_dir_pcc(to_analyze, txt_dir, res_path):
         if num_texts > 0:
             frac_docs = float(num_relations) / float(num_texts)
             res_file.write("relations per document: " + str(frac_docs) + "\n")
+            frac_words = float(num_words) / float(num_texts)
+            res_file.write("words per document: " + str(frac_words) + "\n")
         else:
             res_file.write("relations per document: \n")
+            res_file.write("words per document: \n")
         if num_words > 0:
             frac_words = float(num_relations) / float(num_words)
             res_file.write("relations per word: " + str(frac_words) + "\n")
+            frac_arg1 = float(len_arg1) / float(num_words)
+            res_file.write("frac of words in arg1: " + str(frac_arg1) + "\n")
+            frac_arg2 = float(len_arg2) / float(num_words)
+            res_file.write("frac of words in arg2: " + str(frac_arg2) + "\n")
         else:
             res_file.write("relations per word: \n")
+            res_file.write("frac of words in arg1: \n")
+            res_file.write("frac of words in arg2: \n")
 
         res_file.write("\n#### Senses ####\n")
         for sense in sorted(sense_counts.keys()):
@@ -328,6 +383,8 @@ def analyze_dir_pcc(to_analyze, txt_dir, res_path):
             else:
                 res_file.write(sense + ": \n")
         res_file.write("\n")
+        res_file.write("num implicit: " + str(num_implicit) + "\n")
+        res_file.write("num explicit: " + str(num_explicit) + "\n")
         if num_relations > 0:
             frac_impl = float(num_implicit) / float(num_relations)
             res_file.write("fraction implicit: " + str(frac_impl) + "\n")
@@ -337,19 +394,21 @@ def analyze_dir_pcc(to_analyze, txt_dir, res_path):
             res_file.write("fraction implicit: \n")
             res_file.write("fraction explicit: \n")
 
+        impl_per_doc = float(num_implicit) / float(num_texts)
+        res_file.write("implicit per document: " + str(impl_per_doc) + "\n")
+        impl_per_words = float(num_implicit) / float(num_words)
+        res_file.write("implicit per word: " + str(impl_per_words) + "\n")
+        expl_per_doc = float(num_explicit) / float(num_texts)
+        res_file.write("explicit per document: " + str(expl_per_doc) + "\n")
+        expl_per_words = float(num_explicit) / float(num_words)
+        res_file.write("explicit per word: " + str(expl_per_words) + "\n")
+
         res_file.write("\n#### Arguments ####\n")
         if num_implicit > 0:
-            frac_one_sent = float(one_sent) / float(num_implicit)
-            res_file.write("Fraction of implicit where one argument ")
-            res_file.write("is a sentence: " + str(frac_one_sent) + "\n")
-            frac_both_sent = float(both_sents) / float(num_implicit)
-            res_file.write("Fraction of implicit where both arguments ")
-            res_file.write("are sentences: " + str(frac_both_sent) + "\n")
+            frac_between = float(num_between) / float(num_implicit)
+            res_file.write("Fraction of implicit relations between two sentences: " + str(frac_between) + "\n")
         else:
-            res_file.write("Fraction of implicit where one argument ")
-            res_file.write("is a sentence: \n")
-            res_file.write("Fraction of implicit where both arguments ")
-            res_file.write("are sentences: \n")
+            res_file.write("Fraction of implicit relations between two sentences: \n")
         
         if num_explicit > 0:
             frac_conn_in_arg = float(conn_in_arg) / float(num_explicit)
@@ -378,7 +437,7 @@ def analyze_dir_pcc(to_analyze, txt_dir, res_path):
 
 #analyze_dir_pcc("/data/PotsdamCommentaryCorpus/connectives",
 #                "/data/PotsdamCommentaryCorpus/tokenized",
-#                "/data/europarl/common/analysis/corpora/pcc.txt")
+#                "/data/europarl/common/analysis/corpora/pcc_again.txt")
 
 
 def analyze_transfer(orig_dir, trans_dir, out_path):
@@ -518,7 +577,20 @@ def analyze_transfer(orig_dir, trans_dir, out_path):
     outs += "total: " + str(sum(loste.values())) + "\n"
     for sense in sorted(loste.keys()):
         outs += sense + ": " + str(loste[sense]) + "\n"
-    outs += "\n\n"
+    outs += "\n\n\n"
+
+    all_senses = set(list(e2e.keys()) + list(e2i.keys()) + list(i2e.keys()) + list(i2i.keys()))
+
+    for sense in all_senses:
+        ee = e2e[sense]
+        ei = e2i[sense]
+        ie = i2e[sense]
+        ii = i2i[sense]
+        tot = ee + ei + ie + ii
+        outs += sense + "\te\ti\t|\te%\ti%\n"
+        outs += "e\t" + str(ee) + "\t" + str(ei) + "\t|\t" + str(round(ee/tot,3)) + "\t" + str(round(ei/tot,3)) + "\n"
+        outs += "i\t" + str(ie) + "\t" + str(ii) + "\t|\t" + str(round(ie/tot,3)) + "\t" + str(round(ii/tot,3)) + "\n"
+        outs += "\n\n"
 
     with open(out_path, "w") as out_file:
         out_file.write(outs)
@@ -527,40 +599,3 @@ def analyze_transfer(orig_dir, trans_dir, out_path):
 #analyze_transfer("/data/europarl/common/parsed/en",
 #                 "/data/europarl/common/transferred/from_en",
 #                 "/data/europarl/common/analysis/transfer/en")
-#analyze_transfer("/data/europarl/common/parsed/fr",
-#                 "/data/europarl/common/transferred/from_fr",
-#                 "/data/europarl/common/analysis/transfer/fr")
-#analyze_transfer("/data/europarl/common/parsed/cs",
-#                 "/data/europarl/common/transferred/from_cs",
-#                 "/data/europarl/common/analysis/transfer/cs")
-
-
-def choose_manual_files(split_fn, chosen_fn, n=100):
-    """
-    Randomly choose files for manual evaluation.
-
-    Parameters
-    ----------
-    split_fn : str
-        Path to file containing filenames in train/dev/test split.
-    chosen_fn : str
-        Path to save chosen filenames to.
-    n : int
-        Number of files to choose.
-    """
-
-    fns = []
-    with open(split_fn) as split_file:
-        for line in split_file:
-            if len(line) < 2 or line[-2] == ":":
-                continue
-            fns.append(line.strip())
-
-    chosen_fns = random.sample(fns, n)
-
-    with open(chosen_fn, "w") as chosen_file:
-        for fn in chosen_fns:
-            chosen_file.write(fn + "\n")
-
-choose_manual_files("/data/europarl/common/split/split_no_dev.txt",
-                    "/data/europarl/common/split/manual_fns.txt")

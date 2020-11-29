@@ -147,36 +147,6 @@ def transfer_to_conll_dir(parsed_dir, txt_dir, out_dir):
         transfer_to_conll(parsed_path, txt_path, out_path)
 
 
-#print("CoNLL En")
-#transfer_to_conll_dir("/data/europarl/common/transferred/from_en",
-#                      "/data/europarl/common/txt/de",
-#                      "/data/europarl/common/conll_labels/from_en")
-#print("CoNLL En_Cs")
-#transfer_to_conll_dir("/data/europarl/common/parsed/en_cs",
-#                      "/data/europarl/common/txt/de",
-#                      "/data/europarl/common/conll_labels/en_cs")
-#print("CoNLL En_Fr")
-#transfer_to_conll_dir("/data/europarl/common/parsed/en_fr",
-#                      "/data/europarl/common/txt/de",
-#                      "/data/europarl/common/conll_labels/en_fr")
-#print("CoNLL Cs_Fr")
-#transfer_to_conll_dir("/data/europarl/common/parsed/cs_fr",
-#                      "/data/europarl/common/txt/de",
-#                      "/data/europarl/common/conll_labels/cs_fr")
-#print("CoNLL Cs_Fr_En")
-#transfer_to_conll_dir("/data/europarl/common/parsed/cs_fr_en",
-#                      "/data/europarl/common/txt/de",
-#                      "/data/europarl/common/conll_labels/cs_fr_en")
-#print("CoNLL Cs")
-#transfer_to_conll_dir("/data/europarl/common/transferred/from_cs",
-#                      "/data/europarl/common/txt/de",
-#                      "/data/europarl/common/conll_labels/from_cs")
-#print("CoNLL Fr")
-#transfer_to_conll_dir("/data/europarl/common/transferred/from_fr",
-#                      "/data/europarl/common/txt/de",
-#                      "/data/europarl/common/conll_labels/from_fr")
-
-
 def transfer_to_pcc(parsed_path, txt_path, out_path):
     """
     Take a file containing translated relations and
@@ -235,7 +205,7 @@ def transfer_to_pcc(parsed_path, txt_path, out_path):
                 one_internal = False
             else:
                 one_internal = True
-
+            
             if one_internal:
                 int_arg_tokens = etree.SubElement(new_rel, "int_arg_tokens")
                 for tok_ind in arg1:
@@ -280,36 +250,6 @@ def transfer_to_pcc_dir(parsed_dir, txt_dir, out_dir):
 
         transfer_to_pcc(parsed_path, txt_path, out_path)
 
-#print("PCC Cs")
-#transfer_to_pcc_dir("/data/europarl/common/transferred/from_cs",
-#                      "/data/europarl/common/txt/de",
-#                      "/data/europarl/common/pcc_labels/from_cs")
-#print("PCC En")
-#transfer_to_pcc_dir("/data/europarl/common/transferred/from_en",
-#                      "/data/europarl/common/txt/de",
-#                      "/data/europarl/common/pcc_labels/from_en")
-#print("PCC Fr")
-#transfer_to_pcc_dir("/data/europarl/common/transferred/from_fr",
-#                      "/data/europarl/common/txt/de",
-#                      "/data/europarl/common/pcc_labels/from_fr")
-#
-#print("PCC Cs_Fr")
-#transfer_to_pcc_dir("/data/europarl/common/transferred/cs_fr",
-#                      "/data/europarl/common/txt/de",
-#                      "/data/europarl/common/pcc_labels/cs_fr")
-#print("PCC En_Cs")
-#transfer_to_pcc_dir("/data/europarl/common/transferred/en_cs",
-#                      "/data/europarl/common/txt/de",
-#                      "/data/europarl/common/pcc_labels/en_cs")
-#print("PCC En_Fr")
-#transfer_to_pcc_dir("/data/europarl/common/transferred/en_fr",
-#                      "/data/europarl/common/txt/de",
-#                      "/data/europarl/common/pcc_labels/en_fr")
-#print("PCC Cs_Fr_En")
-#transfer_to_pcc_dir("/data/europarl/common/transferred/cs_fr_en",
-#                      "/data/europarl/common/txt/de",
-#                      "/data/europarl/common/pcc_labels/cs_fr_en")
-
 
 def parse_berkeley(inp_dir, out_dir):
     """
@@ -346,10 +286,6 @@ def parse_berkeley(inp_dir, out_dir):
                 tree.pprint(stream=out_file)
             
         
-#parse_berkeley("/data/europarl/common/txt/de_shortened", "/data/europarl/common/syntax/de/berkeley")
-#parse_berkeley("/data/europarl/common/test", "/data/europarl/common/test2")
-
-
 def remove_incomplete(tiger_dir, txt_dir):
     """
     Remove files from the tiger xml directory,
@@ -391,10 +327,6 @@ def remove_incomplete(tiger_dir, txt_dir):
                 break
 
 
-#remove_incomplete("/data/europarl/common/syntax/de/tiger",
-#                  "/data/europarl/common/txt/de") 
-
-
 def remove_empty_lines(pcc_tok_dir, pcc_tok_new):
     """
     Remove empty lines from tokenized PCC files.
@@ -418,8 +350,6 @@ def remove_empty_lines(pcc_tok_dir, pcc_tok_new):
             for line in no_empty:
                 new_file.write(line)
 
-#remove_empty_lines("/data/PotsdamCommentaryCorpus/tokenized", "/data/PotsdamCommentaryCorpus/tokenized_no_emp_lines")
-
 
 def pcc_to_conll(pcc_dir, conll_path, rm_arg_num=False, level=3):
     """
@@ -438,9 +368,8 @@ def pcc_to_conll(pcc_dir, conll_path, rm_arg_num=False, level=3):
     """
 
     rel_dicts = []
+    raw_senses = set()
     for fn in os.listdir(pcc_dir):
-        #if not fn.startswith("maz-18945"):
-        #    continue
         pcc_path = os.path.join(pcc_dir, fn)
 
         parsed = etree.parse(pcc_path)
@@ -463,6 +392,9 @@ def pcc_to_conll(pcc_dir, conll_path, rm_arg_num=False, level=3):
                 sense = relation.attrib["pdtb3_sense"]
             else:
                 sense = relation.attrib["type"] # EntRel or NoRel
+            raw_senses.add(sense)
+            if sense == "Temporal.Synchronous":
+                sense = "Temporal.Synchrony"
             levels = sense.split(".")[:level]
             if rm_arg_num and levels[-1].startswith("Arg"):
                 levels = levels[:-1]
@@ -548,10 +480,6 @@ def pcc_to_conll(pcc_dir, conll_path, rm_arg_num=False, level=3):
             conll_file.write("\n")
 
 
-#pcc_to_conll("/data/PotsdamCommentaryCorpus/connectives",
-#             "/data/PotsdamCommentaryCorpus/conll_connectives.json",
-#             rm_arg_num=False, level=3)
-
 def GSDP_to_conll(gsdp_dir, conll_path, level=3):
     """
     Transform relations found by the GermanShallowDiscourseParser
@@ -569,15 +497,14 @@ def GSDP_to_conll(gsdp_dir, conll_path, level=3):
 
     new_rels = []
     for fn in os.listdir(gsdp_dir):
-        #if not fn.startswith("maz-18945"):
-        #    continue
         gsdp_path = os.path.join(gsdp_dir, fn)
         with open(gsdp_path) as gsdp_file:
-            rels = json.loads(gsdp_file.read())
+            lines = gsdp_file.readlines()
+            rels = [json.loads(l) for l in lines]
 
         for rel in rels:
             nrel = dict()
-            nrel["DocID"] = rel["DocID"].split(".")[0] # filename without .tok
+            nrel["DocID"] = rel["DocID"].split(".")[0] # filename without .json
             nrel["Arg1"] = dict()
             nrel["Arg1"]["TokenList"] = [quint[2] for quint in rel["Arg1"]["TokenList"]]
 
@@ -587,7 +514,7 @@ def GSDP_to_conll(gsdp_dir, conll_path, level=3):
             nrel["Connective"] = dict()
             nrel["Connective"]["TokenList"] = [quint[2] for quint in rel["Connective"]["TokenList"]]
 
-            sense = rel["Sense"]
+            sense = rel["Sense"][0]
             levels = sense.split(".")[:level]
             sense = ".".join(levels)
             nrel["Sense"] = [sense]
@@ -599,8 +526,3 @@ def GSDP_to_conll(gsdp_dir, conll_path, level=3):
         for rel in new_rels:
             json.dump(rel, conll_file)
             conll_file.write("\n")
-
-
-#GSDP_to_conll("/data/pcc_parsed/from_en",
-#              "/data/pcc_parsed/from_en.json",
-#              level=3)

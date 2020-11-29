@@ -22,22 +22,16 @@ def split_align_file_docs(sent_align_path, word_align_path, split_dir):
     tree = ET.parse(sent_align_path)
     docs = tree.iter(tag="linkGrp")
     with open(word_align_path) as word_align_file:
-        #align_lines = word_align_file.readlines()
         for doc in tqdm(docs):
             fn = doc.attrib["fromDoc"][3:-7]
             links = list(doc.iter(tag="link"))
             num_sents = len(links)
-            #curr_lines = align_lines[:num_sents]
             out_path = os.path.join(split_dir, fn)
             with open(out_path, "w") as out_file:
                 for i, line in enumerate(word_align_file):
                     out_file.write(line)
                     if i == num_sents - 1:
                         break
-
-#split_align_file_docs("/home/johann/Studium/IM/data/Europarl/smt/de-en/bitext.xml",
-#                      "/home/johann/Studium/IM/data/Europarl/smt/de-en/model/aligned.intersection",
-#                      "/home/johann/Studium/IM/data/europarl/alignments/en_full_intersection")
 
 def intersection_alignment(src2tgt_dir, tgt2src_dir, intersection_dir):
     """
@@ -79,10 +73,6 @@ def intersection_alignment(src2tgt_dir, tgt2src_dir, intersection_dir):
                 int_file.write(inter)
                 int_file.write("\n")
 
-intersection_alignment("/data/europarl/common/word_aligned/cs/de_cs",
-                       "/data/europarl/common/word_aligned/cs/cs_de",
-                       "/data/europarl/common/word_aligned/cs/de_cs_intersection")
-
 
 def split_aligned(aligned_path, comb1_path, comb2_path):
     """
@@ -118,9 +108,6 @@ def split_aligned(aligned_path, comb1_path, comb2_path):
                 comb2.write(l2)
                 comb2.write("\n")
                 prev_line_hash = False
-#split_aligned("/data/europarl/common/sent_aligned/fr/de_fr.txt",
-#              "/data/europarl/common/sent_aligned/fr/de_comb.txt",
-#              "/data/europarl/common/sent_aligned/fr/fr_comb.txt")
 
 
 def rm_dok_names(comb_path, inds_path, out_path):
@@ -148,8 +135,6 @@ def rm_dok_names(comb_path, inds_path, out_path):
             curr_fn = None
             curr_num = 0
             for line in orig_file:
-                #if line.strip() == "":
-                #    continue
                 if line[0] == "#":
                     if curr_fn is not None and curr_num != 0:
                         inds_file.write(curr_fn + " " + str(curr_num) + "\n")
@@ -159,15 +144,7 @@ def rm_dok_names(comb_path, inds_path, out_path):
                     curr_num += 1
                     out_file.write(line)
 
-#rm_dok_names("/data/europarl/common/sent_aligned/de_en4/en_comb.txt", 
-#             "/data/europarl/common/sent_aligned/de_en4/en_sent_inds.txt",
-#             "/data/europarl/common/sent_aligned/de_en4/en_no_fn.txt")
-#rm_dok_names("/data/europarl/common/sent_aligned/de_en4/de_comb.txt", 
-#             "/data/europarl/common/sent_aligned/de_en4/de_sent_inds.txt",
-#             "/data/europarl/common/sent_aligned/de_en4/de_no_fn.txt")
 
-
-#def split_giza_results(giza_dir, sent_inds_path, out_dir):
 def split_giza_results(giza_dir, out_dir):
     """
     Split the results of the giza run according to the europarl files.
@@ -185,7 +162,6 @@ def split_giza_results(giza_dir, out_dir):
     fns = os.listdir(giza_dir)
     fns = [fn for fn in fns if fn[:15]=="src_trg.dict.A3"]
 
-    #sent_pairs = dict()
     alg_lines = dict()
 
     num_reg = r"\(([0-9]+)\)"
@@ -193,14 +169,9 @@ def split_giza_results(giza_dir, out_dir):
         giza_path = os.path.join(giza_dir, fn)
         line_ind = 0
         with open(giza_path) as f:
-            #lines = f.readlines()
-            #while lines != []:
             for line in f:
-                #curr_lines = lines[:3]
-                #lines = lines[3:]
                 if line_ind == 0:
                     # line containing information about sentence pair
-                    #match = re.search(num_reg, curr_lines[0])
                     match = re.search(num_reg, line)
                     num = int(match.group(1))
                     line_ind = 1
@@ -212,20 +183,9 @@ def split_giza_results(giza_dir, out_dir):
                     alg_lines[num] = (alg_lines[num], line[:-1])
                     line_ind = 0
                 
-                #line_pair = (curr_lines[1], curr_lines[2])
-                #alg_lines[num] = curr_lines[2]
-                #sent_pairs[num] = line_pair
-
-    #sent_count = 1
-    #with open(sent_inds_path) as sent_inds:
-    #    for j, line in enumerate(sent_inds):
     fn = "tmp"
     for ind in sorted(alg_lines.keys()):
-        #fn, num = line.split()
-        #num = int(num)
-
         out_path = os.path.join(out_dir, fn)
-        #with open(out_path, "w") as out_file:
         line_trg, line_src = alg_lines[ind]
         if line_trg[0] == "#":
             fn = line_trg[30:-1]
@@ -247,18 +207,8 @@ def split_giza_results(giza_dir, out_dir):
                 ind_src = str(wc_src + i)
                 alg_line += ind_src + "-" + ind_trg + " "
         alg_line += "\n"
-        #print(alg_line)
         with open(out_path, "a") as out_file:
             out_file.write(alg_line)
 
         wc_src += len(word_alg) - 1
         wc_trg += len(line_trg.strip().split())
-        #print(wc_src, wc_trg)
-
-        #sent_count += num
-
-
-#split_giza_results("/data/europarl/common/sent_aligned/fr/fr_de/results/",
-#                   "/data/europarl/common/word_aligned/fr/fr_de/")
-#split_giza_results("/data/europarl/common/sent_aligned/fr/de_fr/results/",
-#                   "/data/europarl/common/word_aligned/fr/de_fr/")

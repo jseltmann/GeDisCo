@@ -63,14 +63,6 @@ def copy_common(filenames, common_save_path, langs, xml_path):
             shutil.copy(opath, cp_lang_path)
 
 
-#filenames = get_europarl_overlap("/home/users/jseltmann/data/europarl/Europarl/xml/",
-#                                 ["cs", "en", "fr", "de"])
-#
-#copy_common(filenames, "/home/users/jseltmann/data/europarl/common/xml",
-#            ["cs", "en", "fr", "de"], 
-#            "/home/users/jseltmann/data/europarl/Europarl/xml/")
-
-
 def xml_to_txt(xml_path, txt_path):
     """
     Turn xml europarl files into plain text files to use for discourse parsing.
@@ -124,11 +116,6 @@ def xml_to_txt(xml_path, txt_path):
                     inds_file.write(ind + "\n")
 
 
-#for lang in ["en", "de", "fr", "cs"]:
-#    xml_to_txt("/home/users/jseltmann/data/europarl/common/xml/" + lang, 
-#               "/home/users/jseltmann/data/europarl/common/txt/" + lang)
-
-
 def clean_txt(txt_dir):
     """
     Clean up small problems in the txt files.
@@ -170,8 +157,6 @@ def clean_txt(txt_dir):
                     new_line = re.sub(reg, lambda m: repl, new_line)
                 txt_file.write(new_line)
 
-#clean_txt("/data/europarl/common/txt/fr_trans")
-
 
 def append_files(txt_dir, combined_path, comp_dir=None):
     """
@@ -195,7 +180,7 @@ def append_files(txt_dir, combined_path, comp_dir=None):
             comp_fns = set(os.listdir(comp_dir))
         else:
             comp_fns = set()
-        for fn in os.listdir(txt_dir):
+        for fn in sorted(os.listdir(txt_dir)):
             if fn[-4:] == "inds":
                 continue
             if comp_dir is not None and not fn in comp_fns:
@@ -204,12 +189,7 @@ def append_files(txt_dir, combined_path, comp_dir=None):
             comb_file.write("##############################" + fn + "\n")
             with open(file_path) as txt_file:
                 for line in txt_file:
-                    #comb_file.write(line.lower())
                     comb_file.write(line)
-
-
-#append_files("/home/users/jseltmann/data/europarl/common/txt/de", "/home/users/jseltmann/data/europarl/common/comb/de_comb_compcs.txt", comp_dir="/home/users/jseltmann/data/europarl/common/txt/cs_trans")
-#append_files("/home/users/jseltmann/data/europarl/common/txt/cs_trans", "/home/users/jseltmann/data/europarl/common/comb/cs_comb_compde.txt", comp_dir="/home/users/jseltmann/data/europarl/common/txt/de")
 
 
 def remove_long(txt_dir, long_dir=None):
@@ -228,8 +208,6 @@ def remove_long(txt_dir, long_dir=None):
     """
 
     for fn in os.listdir(txt_dir):
-        #if fn[-4:] == "inds":
-        #    continue
         old_path = os.path.join(txt_dir, fn)
         if fn[-4:] == "inds":
             os.remove(old_path)
@@ -238,22 +216,13 @@ def remove_long(txt_dir, long_dir=None):
             lines = f.readlines()
         for line in lines:
             if len(line.split()) > 200:
-                #old_path_inds = os.path.join(txt_dir, fn[:-3]+"inds")
                 if long_dir is not None:
                     new_path = os.path.join(long_dir, fn)
                     os.rename(old_path, new_path)
-                    #new_path_inds = os.path.join(long_dir, fn[:-3]+"inds")
-                    #os.rename(old_path_inds, new_path_inds)
                 else:
                     os.remove(old_path)
-                    #os.remove(old_path_inds)
                 break
 
-
-#remove_long("/data/europarl/common/txt/de_shortened/", 
-#            "/data/europarl/common/txt/de_long")
-#remove_long("/home/users/jseltmann/data/europarl/common/txt/fr_trans", 
-#            "/home/users/jseltmann/data/europarl/common/too_long/fr_trans")
 
 def split_translated(trans_file_path, trans_dir):
     """
@@ -269,21 +238,15 @@ def split_translated(trans_file_path, trans_dir):
     """
 
     hashtag_re = r"########################"
-    i = 0
     with open(trans_file_path) as trans_file:
         for line in trans_file:
             if re.match(hashtag_re, line):
                 fn = line.split("#")[-1][:-2]
                 split_path = os.path.join(trans_dir, fn)
-                i += 1
-                #if i == 3:
-                #    break
             else:
                 with open(split_path, "a") as split_file:
                     split_file.write(line)
 
-#split_translated("/home/users/jseltmann/data/europarl/common/comb/fr_trans.txt",
-#                 "/home/users/jseltmann/data/europarl/common/txt/fr_trans/")
 
 def split_dir(to_split, dir_num=10):
     """
@@ -311,10 +274,6 @@ def split_dir(to_split, dir_num=10):
         new_dir = os.path.join(to_split, str(curr_num))
         new_path = os.path.join(new_dir, fn)
         shutil.copyfile(old_path, new_path)
-
-
-#split_dir("/home/users/jseltmann/data/europarl/common/conll/en/", 10)
-#split_dir("/home/users/jseltmann/data/europarl/common/test", 3)
 
 
 def clean_tiger(tiger_dir, txt_dir):
@@ -361,12 +320,6 @@ def clean_tiger(tiger_dir, txt_dir):
                 tiger_file.write(line)
 
 
-#clean_tiger("/data/europarl/common/like_pcc/train/syntax",
-#            "/data/europarl/common/txt/de")
-#clean_tiger("/data/europarl/common/test",
-#            "/data/europarl/common/txt/de")
-
-
 def remove_empty_args(conll_dir, cp_dir=None):
     """
     Remove files containing empty arguments.
@@ -400,62 +353,3 @@ def remove_empty_args(conll_dir, cp_dir=None):
                 shutil.move(conll_path, cp_path)
             else:
                 os.remove(conll_path)
-
-#remove_empty_args("/data/europarl/common/transferred/from_en",
-#                  "/data/europarl/common/transferred/from_en_empty_args")
-#remove_empty_args("/data/europarl/common/transferred/from_fr",
-#                  "/data/europarl/common/transferred/from_fr_empty_args")
-#remove_empty_args("/data/europarl/common/transferred/from_cs",
-#                  "/data/europarl/common/transferred/from_cs_empty_args")
-
-
-def create_parsermap(txt_dir, parsermap_path, comp_path=None):
-    """
-    Use stanford parser to create parsemap for German texts.
-
-    Parse each sentence in the German text and save the resulting
-    trees in a dict. The dict is used in the training of the
-    GermanShallowDiscourseParser. This code is largely copied from
-    ConnectiveClassifier.py in the repository of the parser.
-
-    Parameters
-    ----------
-    txt_dir : str
-        Directory to parse.
-    parsermap_path : str
-        Path to which to save resulting dict.
-    comp_path : str
-        Path to preexisting parsermap from which to
-        take trees for sentences that have already been parsed.
-    """
-
-    os.environ["JAVAHOME"] = "/usr/lib/jvm/java-1.8.0-openjdk-amd64"
-    os.environ["STANFORD_PARSER"] = "/project/parsers/stanfordparser/stanford-parser-full-2018-10-17/"
-    os.environ["STANFORD_MODELS"] = "/project/parsers/stanfordparser/stanford-parser-full-2018-10-17/"
-    os.environ["CLASSPATH"] = "/project/parsers/stanfordparser/stanford-parser-full-2018-10-17/stanford-parser.jar"
-
-    lexparser = stanford.StanfordParser(model_path='edu/stanford/nlp/models/lexparser/germanPCFG.ser.gz')
-
-    if comp_path is None:
-        parsermap = dict()
-    else:
-        with open(comp_path, "rb") as comp_file:
-            parsermap = pickle.load(comp_file)
-
-    for fn in tqdm(os.listdir(txt_dir)):
-        txt_path = os.path.join(txt_dir, fn)
-        for line in open(txt_path):
-            sent = line.strip()
-            if sent in parsermap:
-                continue
-            tree = lexparser.parse(re.sub("\)", "]", re.sub("\(", "[", sent)).split())
-            ptree = ParentedTree.convert(tree)
-            parsermap[sent] = ptree
-
-    with open(parsermap_path, "wb") as pfile:
-        pickle.dump(parsermap, pfile)
-
-#create_parsermap("/data/europarl/common/split/de_txt/train/",
-#                 "/data/europarl/common/split/de_syntax/train_parsermap.pickle")
-#create_parsermap("/data/europarl/common/like_pcc/train/tokenized/",
-#                 "/data/europarl/common/like_pcc/train_parsermap.pickle")

@@ -90,10 +90,10 @@ dirs = ["/data/europarl/common/transferred/from_cs/",
         "/data/europarl/common/txt/de_shortened",
         "/data/europarl/common/syntax/de/tiger"]
 
-split(dirs, 
-      "/data/europarl/common/split/split_8k.txt", 
-      split_fracs=[0.9,0,0.1],
-      num_files=8000)
+#split(dirs, 
+#      "/data/europarl/common/split/split_5k.txt", 
+#      split_fracs=[0.9,0,0.1],
+#      num_files=5000)
 
 
 def distribute_split(split_fn, dir_to_split, out_dir, file_ending):
@@ -141,41 +141,3 @@ def distribute_split(split_fn, dir_to_split, out_dir, file_ending):
             orig_path = os.path.join(dir_to_split, fn+file_ending)
             cp_path = os.path.join(cp_dir, fn+file_ending)
             copyfile(orig_path, cp_path)
-
-distribute_split("/data/europarl/common/split/split_8k.txt",
-                 "/data/europarl/common/pcc_labels/from_en/",
-                 "/data/europarl/common/split_8k/en_pcc/",
-                 ".xml")
-distribute_split("/data/europarl/common/split/split_8k.txt",
-                 "/data/europarl/common/pcc_labels/from_cs/",
-                 "/data/europarl/common/split_8k/cs_pcc/",
-                 ".xml")
-distribute_split("/data/europarl/common/split/split_8k.txt",
-                 "/data/europarl/common/pcc_labels/from_fr/",
-                 "/data/europarl/common/split_8k/fr_pcc/",
-                 ".xml")
-distribute_split("/data/europarl/common/split/split_8k.txt",
-                 "/data/europarl/common/pcc_labels/cs_fr/",
-                 "/data/europarl/common/split_8k/cs_fr_pcc/",
-                 ".xml")
-distribute_split("/data/europarl/common/split/split_8k.txt",
-                 "/data/europarl/common/pcc_labels/en_cs/",
-                 "/data/europarl/common/split_8k/en_cs_pcc/",
-                 ".xml")
-distribute_split("/data/europarl/common/split/split_8k.txt",
-                 "/data/europarl/common/pcc_labels/en_fr/",
-                 "/data/europarl/common/split_8k/en_fr_pcc/",
-                 ".xml")
-distribute_split("/data/europarl/common/split/split_8k.txt",
-                 "/data/europarl/common/pcc_labels/cs_fr_en/",
-                 "/data/europarl/common/split_8k/cs_fr_en_pcc/",
-                 ".xml")
-
-distribute_split("/data/europarl/common/split/split_8k.txt",
-                 "/data/europarl/common/txt/de/",
-                 "/data/europarl/common/split_8k/de_txt/",
-                 ".txt")
-distribute_split("/data/europarl/common/split/split_8k.txt",
-                 "/data/europarl/common/syntax/de/tiger/",
-                 "/data/europarl/common/split_8k/de_syntax/",
-                 ".xml")

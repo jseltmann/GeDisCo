@@ -2,6 +2,7 @@ import os
 import json
 import xml.etree.ElementTree as ET
 from tqdm import tqdm
+import random
 
 
 def read_alignments(align_path):
@@ -146,8 +147,6 @@ def read_dimlex(dimlex_path):
             if sense[-1].startswith("Arg"):
                 sense = sense[:-1]
             sense = ".".join(sense)
-            #if sense in ["Contingency.Negative-condition"]:
-            #    sense = "Contingency.Condition"
             if sense.startswith("Comparison.Concession"):
                 sense = "Comparison.Concession"
             elif sense == "Expansion.Level-of-detail":
@@ -253,7 +252,7 @@ def trans_implicit(relation, dimlex_connectives, text):
 
     for connective in dimlex_connectives:
         senses = dimlex_connectives[connective]
-        if not is_contained(sense,senses):#sense in senses:
+        if not is_contained(sense,senses):
             continue
 
         if len(connective) == 1:
@@ -410,7 +409,7 @@ def transfer_rels(relations_dir, align_dir, txt_dir, out_dir, dimlex_path):
                 tok_max = max(tok_list1)
                 tok_list1 = list(range(tok_min,tok_max+1))
                 relation["Arg1"]["TokenList"] = tok_list1
-            
+
             tok_list2 = relation["Arg2"]["TokenList"]
             if len(tok_list2) > 0:
                 tok_min = min(tok_list2)
@@ -436,18 +435,125 @@ def transfer_rels(relations_dir, align_dir, txt_dir, out_dir, dimlex_path):
                 out_file.write("\n")
 
 
-#transfer_rels("/data/europarl/common/parsed/fr",
-#              "/data/europarl/common/word_aligned/fr/de_fr_intersection",
-#              "/data/europarl/common/txt/de",
-#              "/data/europarl/common/transferred/from_fr",
-#              "/data/dimlex/DimLex.xml")
-#transfer_rels("/data/europarl/common/parsed/cs",
-#              "/data/europarl/common/word_aligned/cs/de_cs_intersection",
-#              "/data/europarl/common/txt/de",
-#              "/data/europarl/common/transferred/from_cs",
-#              "/data/dimlex/DimLex.xml")
-#transfer_rels("/data/europarl/common/parsed/en",
-#              "/data/europarl/common/word_aligned/en/de_en_intersection",
-#              "/data/europarl/common/txt/de",
-#              "/data/europarl/common/transferred/from_en",
-#              "/data/dimlex/DimLex.xml")
+simple_drop_probs = {"Comparison.Contrast": 0.5,
+                     "Contingency.Cause.Reason": 0.5,
+                     "Contingency.Cause.Result": 0.5,
+                     "Expansion.Restatement": 2/3}
+
+
+def sample_relations(orig_dir, new_dir, drop_probs, seed=28):
+    """
+    Take directory of relations and sample out
+    some of the relations that occur more often
+    in our corpus than in the PCC.
+
+    Parameters
+    ----------
+    orig_dir : str
+        Directory containing the original relations.
+    new_dir : str
+        Directory to save new relations to.
+    drop_probs : dict()
+        Dictionary containing probabilities, that a
+        relation of a sense will be dropped.
+        Senses not contained in the dictionary aren't dropped.
+    seed : int
+        Random seed to use.
+    """
+
+    random.seed(seed)
+    if not os.path.exists(new_dir):
+        os.makedirs(new_dir)
+
+    for fn in tqdm(os.listdir(orig_dir)):
+        to_transfer = []
+        with open(os.path.join(orig_dir, fn)) as relsf:
+            for line in relsf:
+                rel = json.loads(line)
+                sense = rel["Sense"][0]
+                if sense in drop_probs:
+                    drop_num = random.random()
+                    if drop_num < drop_probs[sense]:
+                        drop = True
+                    else:
+                        drop = False
+                else:
+                    drop = False
+                if not drop:
+                    to_transfer.append(rel)
+
+        with open(os.path.join(new_dir, fn), "w") as newf:
+            for rel in to_transfer:
+                json.dump(rel, newf)
+                newf.write("\n")
+
+
+def _single_sent(i_inds, e_inds, sent_inds):
+    """
+    Return true, if each argument of the relation
+    is contained in one sentence each.
+    Also count as true, if the last word of the argument is
+    in the next sentence.
+    """
+    for j, curr_sent in enumerate(sent_inds):
+        comb = [i for i in i_inds if i in curr_sent]
+        overhang = [i for i in i_inds if i not in curr_sent]
+        if len(comb) > 0 and len(overhang) < 2:
+            if j < len(sent_inds) - 1:
+                next_sent = sent_inds[j+1]
+                comb2 = [i for i in e_inds if i in next_sent]
+                overhang2 = [i for i in e_inds if i not in next_sent]
+                if len(comb2) > 0 and len(overhang) < 2:
+                    return True
+            if j > 0:
+                prev_sent = sent_inds[j-1]
+                comb2 = [i for i in e_inds if i in prev_sent]
+                overhang2 = [i for i in e_inds if i not in prev_sent]
+                if len(comb2) > 0 and len(overhang) < 2:
+                    return True
+    return False
+
+
+def sample_relations_impl_sents(orig_dir, txt_dir, new_dir):
+    """
+    Take directory of relations and sample out
+    implicit relations that do not span between two sentences.
+
+    Parameters
+    ----------
+    orig_dir : str
+        Directory containing the original relations.
+    txt_dir : str
+        Directory containing German text.
+    new_dir : str
+        Directory to save new relations to.
+    """
+
+    if not os.path.exists(new_dir):
+        os.makedirs(new_dir)
+
+    for fn in tqdm(os.listdir(orig_dir)):
+        txt_path = os.path.join(txt_dir, fn.split(".")[0] + ".txt")
+        with open(txt_path) as txt_file:
+            lines = txt_file.readlines()
+            sents = [line.split() for line in lines]
+            sent_inds = []
+            word_count = 0
+            for sent in sents:
+                inds = set([i + word_count for i in range(len(sent))])
+                sent_inds.append(inds)
+                word_count += len(sent)
+
+        to_transfer = []
+        with open(os.path.join(orig_dir, fn)) as relsf:
+            for line in relsf:
+                relation = json.loads(line)
+                i_inds = relation["Arg1"]["TokenList"]
+                e_inds = relation["Arg2"]["TokenList"]
+                if _single_sent(i_inds, e_inds, sent_inds):
+                    to_transfer.append(relation)
+
+        with open(os.path.join(new_dir, fn), "w") as newf:
+            for rel in to_transfer:
+                json.dump(rel, newf)
+                newf.write("\n")
