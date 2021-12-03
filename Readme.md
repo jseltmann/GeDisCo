@@ -1,7 +1,13 @@
 # German Discourse Parsing Corpus
 
+Course project I did under the supervision of Tatjana Scheffler.
+
 ## Intro
-Discourse Parsing corpora for languages other than English are still small or nonexistent. Annotating them by hand would require many human-hours by people specifically trained for that task. This project attempts to build a German discours corpus. It uses the aligned translations from the Europarl corpus (i.e. containing political speeches). The idea is to parse the English language text and then transfer the relations onto the German text. This should work since the discourse structure of a speech doesn't change during translation. In addition, this project also translates Czech and French texts to English in an attempt to capture more relations, an idea taken from [this paper](https://www.aclweb.org/anthology/W19-2703). 
+Discourse Parsing corpora for languages other than English are still small or nonexistent. Annotating them by hand would require many human-hours by people specifically trained for that task. This project attempts to build a German discours corpus. It uses the aligned translations from the Europarl corpus (i.e. containing political speeches). The idea is to parse the English language text and then transfer the relations onto the German text. This should work since the discourse structure of a speech doesn't change during translation. In addition, this project also translates Czech and French texts to English in an attempt to capture more relations, an idea taken from [this paper](https://www.aclweb.org/anthology/W19-2703).
+This repository also includes my [course paper](https://raw.githubusercontent.com/jseltmann/GeDisCo/master/gedisco.pdf) (not peer-reviewed) and the [poster](https://raw.githubusercontent.com/jseltmann/GeDisCo/master/poster.pdf) I made.
+
+## Warning
+While the approach does basically work (see evaluation in the paper), the English Discourse parser I used, does not produce good enough relations to make a working corpus out of it. In order to get good data, you would have to redo it with a different parser. Alternatively, check out [this paper](https://aclanthology.org/2020.lrec-1.131/) by my fellow student Henny Sluyter-Gäthje, who used the smarter approach of using the PDTB (i.e. with human-annotated discourse relations) and translating its text into German. This should work better than my approach since machine translation is much more advanced than automatic Discourse parsing, although her paper does not test the dataset as much as I do in mine.
 
 ## How to create the corpus
 ### Getting and preparing the europarl text
