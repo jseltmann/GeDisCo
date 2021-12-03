@@ -1,7 +1,7 @@
 # German Discourse Parsing Corpus
 
 ## Intro
-TODO
+Discourse Parsing corpora for languages other than English are still small or nonexistent. Annotating them by hand would require many human-hours by people specifically trained for that task. This project attempts to build a German discours corpus. It uses the aligned translations from the Europarl corpus (i.e. containing political speeches). The idea is to parse the English language text and then transfer the relations onto the German text. This should work since the discourse structure of a speech doesn't change during translation. In addition, this project also translates Czech and French texts to English in an attempt to capture more relations, an idea taken from [this paper](https://www.aclweb.org/anthology/W19-2703). 
 
 ## How to create the corpus
 ### Getting and preparing the europarl text
